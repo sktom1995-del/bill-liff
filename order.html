@@ -148,7 +148,7 @@
     </div>
     <img id="previewImg" src="" alt="preview">
     <button class="btn-save-img" onclick="sendImageToLINE()" style="margin-top:10px;background:#00B900;width:100%;">
-      ☁️ บันทึกรูปขึ้น Drive
+      🌐 เปิดใน Browser เพื่อบันทึกรูป
     </button>
     <p style="font-size:12px;color:#aaa;text-align:center;margin-top:6px;">
       เลือกแชทตัวเอง → กดค้างที่รูป → บันทึกรูปภาพ
@@ -855,49 +855,20 @@ async function shareOrder() {
   }
 }
 
-async function sendImageToLINE() {
-  const imgEl = document.getElementById('previewImg');
-  if (!imgEl.src) { alert('ยังไม่มีรูป'); return; }
-
-  const btn = document.querySelector('[onclick="sendImageToLINE()"]');
-  if (btn) { btn.textContent = '⏳ กำลังอัพโหลด...'; btn.disabled = true; }
-
-  try {
-    const customer = document.getElementById('customerSelect').value;
-
-    // ส่งรูปไปอัพโหลดที่ Apps Script → Google Drive
-    const response = await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'uploadImage',
-        customerName: customer,
-        imageBase64: imgEl.src
-      })
-    });
-
-    // no-cors ไม่สามารถอ่าน response ได้
-    // แจ้งให้ไปดูใน Drive แทน
-    alert('✅ อัพโหลดรูปไปที่ Google Drive แล้วครับ! สามารถดูรูปได้จากลิงก์ใน Sheet ครับ');
-
-  } catch (err) {
-    alert('❌ อัพโหลดไม่ได้: ' + err.message);
-  }
-
-  if (btn) { btn.textContent = '📤 เปิดรูปเพื่อบันทึก'; btn.disabled = false; }
+function sendImageToLINE() {
+  // เปิดหน้าในเบราว์เซอร์ปกติโดยใช้ ?openExternalBrowser=1
+  // แล้วค่อยกดค้างที่รูปเพื่อบันทึก
+  const currentUrl = window.location.href;
+  const separator = currentUrl.includes('?') ? '&' : '?';
+  window.location.href = currentUrl + separator + 'openExternalBrowser=1';
 }
 
 function openInBrowser() {
-  // เปิดหน้าปัจจุบันใน browser ปกติ
-  if (liff.isInClient()) {
-    liff.openWindow({
-      url: window.location.href,
-      external: true
-    });
-  } else {
-    alert('กรุณากดค้างที่รูปแล้วเลือก "บันทึกรูปภาพ" ครับ');
-  }
+  // เพิ่ม ?openExternalBrowser=1 เพื่อเปิดใน browser ปกติ
+  const currentUrl = window.location.href;
+  const separator = currentUrl.includes('?') ? '&' : '?';
+  const externalUrl = currentUrl + separator + 'openExternalBrowser=1';
+  window.location.href = externalUrl;
 }
 
 function closePreview() {
