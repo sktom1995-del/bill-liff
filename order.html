@@ -203,16 +203,27 @@ let userProfile    = null;
 async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
+
+    // ถ้าไม่ได้เปิดใน LINE ให้โหลดต่อได้เลย (สำหรับทดสอบบนคอม)
     if (liff.isLoggedIn()) {
-      userProfile = await liff.getProfile();
+      try {
+        userProfile = await liff.getProfile();
+      } catch(e) {
+        userProfile = { userId: 'test-user' };
+      }
+    } else if (liff.isInClient()) {
+      liff.login();
+      return;
     } else {
-      liff.login(); return;
+      // เปิดนอก LINE (browser ปกติ) ให้ใช้งานได้แต่ไม่มี profile
+      userProfile = { userId: 'test-user' };
     }
+
     await Promise.all([loadCustomers(), loadAllProducts()]);
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';
   } catch (err) {
-    document.getElementById('loading').innerHTML = `<div>❌ โหลดไม่ได้: ${err.message}</div>`;
+    document.getElementById('loading').innerHTML = `<div>❌ โหลดไม่ได้: ${err.message}<br><small>${err.stack || ''}</small></div>`;
   }
 }
 
