@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>สั่งสินค้าประจำ</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', sans-serif; background: #f5f5f5; color: #333; }
+
+    .header { background: #00B900; color: white; padding: 14px 16px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,185,0,0.3); }
+    .header h1 { font-size: 18px; font-weight: 700; }
+
+    #loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; gap: 12px; color: #888; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #00B900; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #app { display: none; padding: 12px; max-width: 480px; margin: 0 auto; padding-bottom: 100px; }
+
+    .card { background: white; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card-title { font-size: 13px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+
+    /* SELECT */
+    .select-field { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 15px; font-family: 'Sarabun', sans-serif; background: white; color: #333; }
+    .select-field:focus { outline: none; border-color: #00B900; }
+
+    /* PRODUCT ROWS */
+    .product-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+    .product-row:last-child { border-bottom: none; }
+    .product-name { flex: 1; font-size: 14px; font-weight: 600; color: #333; }
+    .product-unit { font-size: 12px; color: #aaa; }
+    .qty-box { display: flex; align-items: center; gap: 6px; }
+    .qty-btn { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid #ddd; background: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #555; transition: all 0.15s; }
+    .qty-btn:active { background: #f0f0f0; }
+    .qty-input { width: 44px; padding: 4px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 14px; text-align: center; font-family: 'Sarabun', sans-serif; }
+    .qty-input:focus { outline: none; border-color: #00B900; }
+    .remove-btn { width: 28px; height: 28px; border-radius: 50%; border: none; background: #fee; color: #f44; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* ADD MORE */
+    .add-more-btn { width: 100%; padding: 10px; background: #f8f8f8; border: 2px dashed #ccc; border-radius: 10px; font-size: 14px; color: #666; cursor: pointer; font-family: 'Sarabun', sans-serif; margin-top: 8px; }
+    .add-more-btn:active { background: #f0f0f0; }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; }
+    .modal-overlay.show { display: flex; align-items: flex-end; }
+    .modal { background: white; border-radius: 16px 16px 0 0; width: 100%; max-height: 75vh; display: flex; flex-direction: column; }
+    .modal-header { padding: 16px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 16px; font-weight: 700; }
+    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
+    .modal-search { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; }
+    .modal-search input { width: 100%; padding: 8px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; font-family: 'Sarabun', sans-serif; }
+    .modal-search input:focus { outline: none; border-color: #00B900; }
+    .modal-list { overflow-y: auto; flex: 1; }
+    .modal-item { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; cursor: pointer; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-item:active { background: #f5f5f5; }
+    .modal-item-price { font-size: 12px; color: #aaa; }
+
+    /* SUMMARY */
+    #summaryCard { display: none; }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-name { flex: 1; color: #333; }
+    .summary-calc { color: #888; font-size: 12px; margin: 0 8px; }
+    .summary-amt { font-weight: 700; color: #00B900; }
+    .total-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 4px; }
+    .total-label { font-size: 16px; font-weight: 700; }
+    .total-amount { font-size: 22px; font-weight: 700; color: #00B900; }
+
+    /* BOTTOM BUTTONS */
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px; background: white; box-shadow: 0 -2px 12px rgba(0,0,0,0.1); display: flex; gap: 10px; max-width: 480px; margin: 0 auto; }
+    .btn-submit { flex: 2; padding: 13px; background: #00B900; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; }
+    .btn-submit:disabled { background: #ccc; }
+    .btn-share { flex: 1; padding: 13px; background: white; color: #00B900; border: 2px solid #00B900; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; display: none; }
+
+    /* IMAGE PREVIEW */
+    #imagePreview { display: none; text-align: center; }
+    #imagePreview img { width: 100%; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .btn-save-img { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; margin-top: 10px; }
+
+    /* CAPTURE CARD */
+    #captureCard { background: white; border-radius: 12px; padding: 16px; width: 360px; position: fixed; left: -9999px; top: 0; font-family: 'Sarabun', sans-serif; }
+    .cap-header { background: #00B900; color: white; padding: 12px 16px; border-radius: 8px 8px 0 0; margin: -16px -16px 12px; text-align: center; font-size: 16px; font-weight: 700; }
+    .cap-customer { font-size: 14px; font-weight: 700; color: #333; margin-bottom: 8px; }
+    .cap-date { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .cap-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    .cap-row:last-child { border-bottom: none; }
+    .cap-name { flex: 1; color: #333; }
+    .cap-calc { color: #888; font-size: 12px; margin: 0 8px; }
+    .cap-amt { font-weight: 700; color: #00B900; }
+    .cap-total { display: flex; justify-content: space-between; padding: 12px 0 4px; border-top: 2px solid #00B900; margin-top: 8px; }
+    .cap-total-label { font-size: 15px; font-weight: 700; }
+    .cap-total-amt { font-size: 18px; font-weight: 700; color: #00B900; }
+
+    .badge { background: #00B900; color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: 4px; }
+    .empty-state { text-align: center; padding: 20px; color: #aaa; font-size: 14px; }
+
+    /* CATEGORY TABS ใน modal */
+    .modal-cats { display: flex; gap: 6px; overflow-x: auto; padding: 8px 16px; border-bottom: 1px solid #f0f0f0; scrollbar-width: none; }
+    .modal-cats::-webkit-scrollbar { display: none; }
+    .mcat-btn { flex-shrink: 0; padding: 5px 12px; border-radius: 16px; border: 1.5px solid #e0e0e0; background: white; font-size: 12px; font-family: 'Sarabun', sans-serif; cursor: pointer; color: #555; white-space: nowrap; }
+    .mcat-btn.active { background: #00B900; border-color: #00B900; color: white; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📋 สั่งสินค้าประจำ</h1>
+</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div>กำลังโหลดข้อมูล...</div>
+</div>
+
+<div id="app">
+  <!-- เลือกลูกค้า -->
+  <div class="card" id="customerCard">
+    <div class="card-title">ชื่อลูกค้า</div>
+    <select id="customerSelect" class="select-field" onchange="loadRegularItems()">
+      <option value="">-- เลือกลูกค้า --</option>
+    </select>
+  </div>
+
+  <!-- รายการประจำ -->
+  <div class="card" id="regularCard" style="display:none">
+    <div class="card-title">รายการประจำ <span class="badge" id="itemCount">0</span></div>
+    <div id="regularList"></div>
+    <button class="add-more-btn" onclick="openModal()">+ เพิ่มสินค้าอื่น</button>
+  </div>
+
+  <!-- สรุป -->
+  <div class="card" id="summaryCard">
+    <div class="card-title">สรุปรายการ</div>
+    <div id="summaryList"></div>
+    <div class="total-row">
+      <div class="total-label">ยอดรวม</div>
+      <div class="total-amount" id="totalAmount">0 บาท</div>
+    </div>
+  </div>
+</div>
+
+  <!-- Image Preview -->
+  <div id="imagePreview" style="padding:8px;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+      <button onclick="closePreview()" style="background:none;border:none;font-size:13px;color:#888;cursor:pointer;">✕ ปิด</button>
+    </div>
+    <img id="previewImg" src="" alt="preview">
+    <button class="btn-save-img" onclick="sendImageToLINE()" style="margin-top:10px;background:#00B900;width:100%;">
+      ☁️ บันทึกรูปขึ้น Drive
+    </button>
+    <p style="font-size:12px;color:#aaa;text-align:center;margin-top:6px;">
+      เลือกแชทตัวเอง → กดค้างที่รูป → บันทึกรูปภาพ
+    </p>
+  </div>
+</div>
+
+<!-- Capture Card (hidden) -->
+<div id="captureCard">
+  <div class="cap-header">🧾 รายการสั่งสินค้า</div>
+  <div class="cap-customer" id="capCustomer"></div>
+  <div class="cap-date" id="capDate"></div>
+  <div id="capRows"></div>
+  <div class="cap-total">
+    <div class="cap-total-label">ยอดรวมทั้งสิ้น</div>
+    <div class="cap-total-amt" id="capTotal"></div>
+  </div>
+</div>
+
+<!-- ปุ่มด้านล่าง -->
+<div class="bottom-bar" id="bottomBar" style="display:none">
+  <button class="btn-submit" id="submitBtn" onclick="submitOrder()">✅ ยืนยันและส่ง LINE</button>
+  <button class="btn-share" id="shareBtn" onclick="saveAsImage()">📸 บันทึกรูป</button>
+</div>
+
+<!-- Modal เพิ่มสินค้า -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">เพิ่มสินค้า</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-search">
+      <input type="text" id="modalSearch" placeholder="ค้นหาสินค้า..." oninput="filterModal()">
+    </div>
+    <div class="modal-cats" id="modalCats"></div>
+    <div class="modal-list" id="modalList"></div>
+  </div>
+</div>
+
+<script>
+const LIFF_ID = '2010175558-26n1GZ4C';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
+
+let allProducts    = [];  // สินค้าทั้งหมดจาก Sheet ราคาสินค้า
+let regularItems   = [];  // รายการประจำของลูกค้า { name, unit, qty }
+let extraItems     = [];  // รายการเพิ่มเติม { name, unit, qty, price, bulkPrice, minQty, bagPerHiw, kgPerBag }
+let modalCategory  = '';
+let userProfile    = null;
+
+// ==================== INIT ====================
+async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (liff.isLoggedIn()) {
+      userProfile = await liff.getProfile();
+    } else {
+      liff.login(); return;
+    }
+    await Promise.all([loadCustomers(), loadAllProducts()]);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  } catch (err) {
+    document.getElementById('loading').innerHTML = `<div>❌ โหลดไม่ได้: ${err.message}</div>`;
+  }
+}
+
+// ==================== LOAD CUSTOMERS ====================
+async function loadCustomers() {
+  const res  = await fetch(`${GAS_URL}?action=getCustomers`);
+  const data = await res.json();
+  const sel  = document.getElementById('customerSelect');
+  data.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+}
+
+// ==================== LOAD ALL PRODUCTS ====================
+async function loadAllProducts() {
+  const res = await fetch(`${GAS_URL}?action=getProducts`);
+  allProducts = await res.json();
+
+  // สร้างแท็บ category ใน modal
+  const cats = [...new Set(allProducts.map(p => p.subCategory).filter(Boolean))];
+  modalCategory = cats[0] || '';
+  const catsEl = document.getElementById('modalCats');
+  catsEl.innerHTML = '';
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'mcat-btn' + (cat === modalCategory ? ' active' : '');
+    btn.textContent = cat;
+    btn.onclick = () => { modalCategory = cat; updateModalCats(); renderModal(); };
+    catsEl.appendChild(btn);
+  });
+}
+
+function updateModalCats() {
+  document.querySelectorAll('.mcat-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === modalCategory);
+  });
+}
+
+// ==================== LOAD REGULAR ITEMS ====================
+async function loadRegularItems() {
+  const customer = document.getElementById('customerSelect').value;
+  if (!customer) {
+    document.getElementById('regularCard').style.display = 'none';
+    document.getElementById('summaryCard').style.display = 'none';
+    document.getElementById('bottomBar').style.display = 'none';
+    return;
+  }
+
+  regularItems = [];
+  extraItems   = [];
+
+  const res  = await fetch(`${GAS_URL}?action=getRegular&customer=${encodeURIComponent(customer)}`);
+  const data = await res.json();
+  regularItems = data.map(d => ({ name: d.name, unit: d.unit || 'ถุง', qty: 0 }));
+
+  document.getElementById('regularCard').style.display = 'block';
+  document.getElementById('bottomBar').style.display = 'flex';
+  renderRegular();
+  updateSummary();
+}
+
+// ==================== RENDER REGULAR ====================
+function renderRegular() {
+  const list = document.getElementById('regularList');
+  document.getElementById('itemCount').textContent = regularItems.length + extraItems.length;
+
+  if (regularItems.length === 0 && extraItems.length === 0) {
+    list.innerHTML = '<div class="empty-state">ยังไม่มีรายการประจำ<br>กด "+ เพิ่มสินค้าอื่น" ด้านล่าง</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  [...regularItems, ...extraItems].forEach((item, i) => {
+    const isExtra = i >= regularItems.length;
+    const row = document.createElement('div');
+    row.className = 'product-row';
+    row.innerHTML = `
+      <div style="flex:1">
+        <div class="product-name">${item.name}</div>
+      </div>
+      <div class="qty-box">
+        <button class="qty-btn" onclick="changeQty(${i}, -1)">−</button>
+        <input type="number" class="qty-input" value="${item.qty}" min="0"
+          oninput="setQty(${i}, this.value)">
+        <button class="qty-btn" onclick="changeQty(${i}, 1)">+</button>
+        <select class="unit-select" onchange="setUnit(${i}, this.value)">
+          ${getUnitOptions(item.name, item.unit)}
+        </select>
+      </div>
+      ${isExtra ? `<button class="remove-btn" onclick="removeExtra(${i - regularItems.length})">✕</button>` : ''}
+    `;
+    list.appendChild(row);
+  });
+}
+
+// ==================== QTY CONTROL ====================
+function changeQty(i, delta) {
+  const allItems = [...regularItems, ...extraItems];
+  const newQty = Math.max(0, (allItems[i].qty || 0) + delta);
+  if (i < regularItems.length) regularItems[i].qty = newQty;
+  else extraItems[i - regularItems.length].qty = newQty;
+  renderRegular();
+  updateSummary();
+}
+
+function setQty(i, val) {
+  const qty = Math.max(0, parseFloat(val) || 0);
+  if (i < regularItems.length) regularItems[i].qty = qty;
+  else extraItems[i - regularItems.length].qty = qty;
+  updateSummary();
+}
+
+function removeExtra(i) {
+  extraItems.splice(i, 1);
+  renderRegular();
+  updateSummary();
+}
+
+function getUnitOptions(name, currentUnit) {
+  const prod = allProducts.find(p =>
+    p.name.split('หรือ')[0].trim() === name || p.name.includes(name)
+  );
+  const units = ['ถุง'];
+  if (prod && prod.bagPerHiw) units.push('หิ้ว');
+  if (prod && prod.kgPerBag)  units.push('โล');
+  return units.map(u =>
+    '<option value="' + u + '"' + (u === currentUnit ? ' selected' : '') + '>' + u + '</option>'
+  ).join('');
+}
+
+function setUnit(i, unit) {
+  if (i < regularItems.length) regularItems[i].unit = unit;
+  else extraItems[i - regularItems.length].unit = unit;
+  updateSummary();
+}
+
+// ==================== CALC GROUP TOTALS ====================
+function calcGroupTotals(allItems) {
+  const groupTotals = {};
+  allItems.forEach(item => {
+    const prod = allProducts.find(p =>
+      p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name)
+    );
+    if (prod && prod.groupKey) {
+      let totalBags = item.qty;
+      const unit = item.unit || 'ถุง';
+      if (unit === 'หิ้ว' && prod.bagPerHiw) totalBags = item.qty * prod.bagPerHiw;
+      if (unit === 'โล'   && prod.kgPerBag)  totalBags = item.qty / prod.kgPerBag;
+      groupTotals[prod.groupKey] = (groupTotals[prod.groupKey] || 0) + totalBags;
+    }
+  });
+  return groupTotals;
+}
+
+// ==================== CALC PRICE ====================
+function calcPrice(item, qty, groupTotals) {
+  const prod = allProducts.find(p =>
+    p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name)
+  );
+  if (!prod) return { totalBags: qty, pricePerUnit: 0, total: 0 };
+
+  let totalBags = qty;
+  const unit = item.unit || 'ถุง';
+  if (unit === 'หิ้ว' && prod.bagPerHiw) totalBags = qty * prod.bagPerHiw;
+  if (unit === 'โล'   && prod.kgPerBag)  totalBags = qty / prod.kgPerBag;
+
+  // ใช้จำนวนถุงรวมกลุ่มถ้ามี groupKey
+  const effectiveBags = (prod.groupKey && groupTotals && groupTotals[prod.groupKey])
+    ? groupTotals[prod.groupKey]
+    : totalBags;
+
+  // เช็คเงื่อนไขราคาส่ง
+  const isBulk = prod.minQty && prod.bulkPrice && effectiveBags >= prod.minQty;
+  const pricePerBag = isBulk ? prod.bulkPrice : prod.price;
+
+  // คำนวณราคาต่อหน่วยที่ลูกค้าเลือก
+  let pricePerUnit = pricePerBag;
+  if (unit === 'หิ้ว' && prod.bagPerHiw) {
+    pricePerUnit = pricePerBag * prod.bagPerHiw;
+  } else if (unit === 'โล' && prod.kgPerBag) {
+    pricePerUnit = pricePerBag / prod.kgPerBag;
+  }
+
+  const total = pricePerUnit * qty;
+  return { totalBags, pricePerUnit, total };
+}
+
+// ==================== UPDATE SUMMARY ====================
+function updateSummary() {
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  const summaryCard = document.getElementById('summaryCard');
+  const summaryList = document.getElementById('summaryList');
+  const shareBtn    = document.getElementById('shareBtn');
+
+  if (allItems.length === 0) {
+    summaryCard.style.display = 'none';
+    shareBtn.style.display = 'none';
+    return;
+  }
+
+  summaryCard.style.display = 'block';
+  shareBtn.style.display = 'block';
+  summaryList.innerHTML = '';
+  let grandTotal = 0;
+
+  const groupTotals = calcGroupTotals(allItems);
+  allItems.forEach(item => {
+    const { pricePerUnit, total } = calcPrice(item, item.qty, groupTotals);
+    grandTotal += total;
+
+    const row = document.createElement('div');
+    row.className = 'summary-row';
+    row.innerHTML = `
+      <div class="summary-name">${item.name}</div>
+      <div class="summary-calc">${item.qty}${item.unit} × ${pricePerUnit}บ.</div>
+      <div class="summary-amt">${total} บ.</div>
+    `;
+    summaryList.appendChild(row);
+  });
+
+  document.getElementById('totalAmount').textContent = `${grandTotal} บาท`;
+}
+
+// ==================== MODAL ====================
+function openModal() {
+  document.getElementById('modalOverlay').classList.add('show');
+  document.getElementById('modalSearch').value = '';
+  renderModal();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+function filterModal() { renderModal(); }
+
+function renderModal() {
+  const search = document.getElementById('modalSearch').value.toLowerCase();
+  const list   = document.getElementById('modalList');
+
+  let filtered = allProducts.filter(p => p.subCategory === modalCategory);
+  if (search) {
+    filtered = allProducts.filter(p =>
+      p.name.toLowerCase().includes(search)
+    );
+  }
+
+  // ซ่อนสินค้าที่มีในรายการแล้ว
+  const existing = [...regularItems, ...extraItems].map(i => i.name);
+
+  list.innerHTML = '';
+  filtered.forEach(p => {
+    const name = p.name.split('หรือ')[0].trim();
+    if (existing.includes(name)) return;
+
+    const div = document.createElement('div');
+    div.className = 'modal-item';
+    div.innerHTML = `
+      <div>${name}</div>
+      <div class="modal-item-price">${p.price} บ./ถุง</div>
+    `;
+    div.onclick = () => addExtra(p);
+    list.appendChild(div);
+  });
+
+  if (list.children.length === 0) {
+    list.innerHTML = '<div class="empty-state">ไม่พบสินค้า</div>';
+  }
+}
+
+function addExtra(product) {
+  const name = product.name.split('หรือ')[0].trim();
+  extraItems.push({ name, unit: 'ถุง', qty: 1 });
+  closeModal();
+  renderRegular();
+  updateSummary();
+}
+
+// ==================== GENERATE BILL IMAGE ====================
+function generateBillImage(customer, allItems) {
+  const now = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const billNo = 'B' + today + '-' + Date.now().toString().slice(-3);
+
+  let grandTotal = 0;
+  const groupTotals = calcGroupTotals(allItems);
+  const rows = allItems.map(item => {
+    const { pricePerUnit, total } = calcPrice(item, item.qty, groupTotals);
+    grandTotal += total;
+    return { name: item.name, calc: item.qty + item.unit + '×' + pricePerUnit + 'บ.', total };
+  });
+
+  const W = 360;
+  const ROW_H = 36;
+  const H = 140 + rows.length * ROW_H + 60;
+  const canvas = document.createElement('canvas');
+  const scale = 2;
+  canvas.width  = W * scale;
+  canvas.height = H * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#00B900';
+  ctx.fillRect(0, 0, W, 50);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🧾 รายการสั่งสินค้า', W/2, 32);
+  ctx.fillStyle = '#333333';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('ลูกค้า: ' + customer, 16, 74);
+  ctx.fillStyle = '#888888';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('วันที่ ' + now, 16, 92);
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(16, 104); ctx.lineTo(W-16, 104); ctx.stroke();
+
+  let y = 118;
+  rows.forEach(row => {
+    ctx.fillStyle = '#333333';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'left';
+    let name = row.name;
+    if (ctx.measureText(name).width > 160) {
+      while (ctx.measureText(name + '...').width > 160) name = name.slice(0, -1);
+      name += '...';
+    }
+    ctx.fillText(name, 16, y);
+    ctx.fillStyle = '#888888';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(row.calc, W/2, y);
+    ctx.fillStyle = '#00B900';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(row.total + ' บ.', W-16, y);
+    y += ROW_H;
+    ctx.strokeStyle = '#f5f5f5'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(16, y-8); ctx.lineTo(W-16, y-8); ctx.stroke();
+  });
+
+  y += 8;
+  ctx.strokeStyle = '#00B900'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(16, y); ctx.lineTo(W-16, y); ctx.stroke();
+  y += 24;
+  ctx.fillStyle = '#333333'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('ยอดรวมทั้งสิ้น', 16, y);
+  ctx.fillStyle = '#00B900'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText(grandTotal + ' บาท', W-16, y);
+
+  return { imageBase64: canvas.toDataURL('image/png'), billNo };
+}
+
+// ==================== SUBMIT ====================
+async function submitOrder() {
+  const customer = document.getElementById('customerSelect').value;
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+
+  if (!customer) { alert('กรุณาเลือกลูกค้าก่อนครับ'); return; }
+  if (allItems.length === 0) { alert('กรุณาใส่จำนวนสินค้าอย่างน้อย 1 รายการ'); return; }
+
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = '⏳ กำลังส่ง...';
+
+  const items = allItems.map(i => ({ name: i.name, qty: i.qty, unit: i.unit }));
+
+  try {
+    // สร้างรูปบิล
+    let imageBase64 = null;
+    let billNo = null;
+    try {
+      const result = generateBillImage(customer, allItems);
+      imageBase64 = result.imageBase64;
+      billNo = result.billNo;
+    } catch(e) { Logger && Logger.log(e); }
+
+    await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: imageBase64 ? 'submitOrderWithImage' : 'submitOrder',
+        userId: userProfile.userId,
+        customerName: customer,
+        items,
+        imageBase64,
+        billNo
+      })
+    });
+    alert('✅ ส่งรายการเรียบร้อยแล้ว!\nกรุณาตรวจสอบใน LINE');
+    liff.closeWindow();
+  } catch (err) {
+    alert('❌ ส่งไม่ได้: ' + err.message);
+  }
+
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitBtn').textContent = '✅ ยืนยันและส่ง LINE';
+}
+
+// ==================== SAVE AS IMAGE (Canvas) ====================
+function saveAsImage() {
+  const customer = document.getElementById('customerSelect').value;
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  if (allItems.length === 0) { alert('ยังไม่มีรายการที่เลือก'); return; }
+
+  const shareBtn = document.getElementById('shareBtn');
+  if (shareBtn.disabled) return;
+  shareBtn.textContent = '⏳ กำลังสร้างรูป...';
+  shareBtn.disabled = true;
+
+  try {
+    // คำนวณข้อมูล
+    const now = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+    let grandTotal = 0;
+    const groupTotals = calcGroupTotals(allItems);
+    const rows = allItems.map(item => {
+      const { pricePerUnit, total } = calcPrice(item, item.qty, groupTotals);
+      grandTotal += total;
+      return { name: item.name, calc: item.qty + item.unit + '×' + pricePerUnit + 'บ.', total };
+    });
+
+    // สร้าง Canvas
+    const W = 360;
+    const ROW_H = 36;
+    const H = 140 + rows.length * ROW_H + 60;
+    const canvas = document.createElement('canvas');
+    const scale = 2;
+    canvas.width  = W * scale;
+    canvas.height = H * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    // พื้นหลัง
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    // Header สีเขียว
+    ctx.fillStyle = '#00B900';
+    ctx.fillRect(0, 0, W, 50);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🧾 รายการสั่งสินค้า', W/2, 32);
+
+    // ชื่อลูกค้า + วันที่
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('ลูกค้า: ' + customer, 16, 74);
+    ctx.fillStyle = '#888888';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('วันที่ ' + now, 16, 92);
+
+    // เส้นคั่น
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(16, 104);
+    ctx.lineTo(W - 16, 104);
+    ctx.stroke();
+
+    // รายการสินค้า
+    let y = 104 + ROW_H * 0.7;
+    rows.forEach(row => {
+      y += ROW_H * 0.3;
+      ctx.fillStyle = '#333333';
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'left';
+      // ตัดชื่อถ้ายาวเกิน
+      let name = row.name;
+      if (ctx.measureText(name).width > 160) {
+        while (ctx.measureText(name + '...').width > 160) name = name.slice(0, -1);
+        name += '...';
+      }
+      ctx.fillText(name, 16, y);
+      ctx.fillStyle = '#888888';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(row.calc, W/2, y);
+      ctx.fillStyle = '#00B900';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(row.total + ' บ.', W - 16, y);
+      y += ROW_H * 0.7;
+
+      // เส้นคั่นเบาๆ
+      ctx.strokeStyle = '#f5f5f5';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(16, y);
+      ctx.lineTo(W - 16, y);
+      ctx.stroke();
+      y += ROW_H * 0.3 - ROW_H * 0.3;
+    });
+
+    y += 8;
+    // เส้นคั่นยอดรวม
+    ctx.strokeStyle = '#00B900';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(16, y);
+    ctx.lineTo(W - 16, y);
+    ctx.stroke();
+    y += 24;
+
+    // ยอดรวม
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('ยอดรวมทั้งสิ้น', 16, y);
+    ctx.fillStyle = '#00B900';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(grandTotal + ' บาท', W - 16, y);
+
+    // แสดงรูป
+    const imgData = canvas.toDataURL('image/png');
+    // ซ่อนทุกอย่างก่อน
+    document.querySelector('.header').style.display = 'none';
+    document.getElementById('customerCard').style.display = 'none';
+    document.getElementById('regularCard').style.display = 'none';
+    document.getElementById('summaryCard').style.display = 'none';
+    document.getElementById('bottomBar').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
+    // แสดงแค่รูป
+    const previewEl = document.getElementById('imagePreview');
+    document.getElementById('previewImg').src = imgData;
+    previewEl.style.display = 'block';
+
+    // ปุ่มดาวน์โหลด
+    // ไม่มีปุ่มดาวน์โหลดแล้ว ใช้ open in browser แทน
+
+  } catch (err) {
+    alert('❌ สร้างรูปไม่ได้: ' + err.message);
+  }
+
+  shareBtn.textContent = '📸 บันทึกรูป';
+  shareBtn.disabled = false;
+}
+
+// ==================== SHARE (เก่า ไม่ใช้แล้ว) ====================
+async function shareOrder() {
+  const customer  = document.getElementById('customerSelect').value;
+  const allItems  = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  if (allItems.length === 0) { alert('ยังไม่มีรายการที่เลือก'); return; }
+
+  let grandTotal = 0;
+  const itemContents = allItems.map(item => {
+    const { pricePerUnit, total } = calcPrice(item, item.qty);
+    grandTotal += total;
+    return {
+      type: 'box', layout: 'horizontal', margin: 'sm',
+      contents: [
+        { type: 'text', text: item.name, size: 'sm', color: '#333333', flex: 4, wrap: true },
+        { type: 'text', text: `${item.qty}${item.unit}`, size: 'sm', color: '#666', flex: 2, align: 'center' },
+        { type: 'text', text: `${total}`, size: 'sm', color: '#00B900', flex: 2, align: 'end', weight: 'bold' }
+      ]
+    };
+  });
+
+  const flexMsg = {
+    type: 'flex',
+    altText: `บิล ${customer} ยอด ${grandTotal} บาท`,
+    contents: {
+      type: 'bubble', size: 'mega',
+      styles: { header: { backgroundColor: '#FFFFFF' }, body: { backgroundColor: '#FFFFFF' }, footer: { backgroundColor: '#FFFFFF' } },
+      header: {
+        type: 'box', layout: 'vertical', paddingAll: 'lg',
+        contents: [{
+          type: 'box', layout: 'horizontal',
+          contents: [
+            { type: 'text', text: '🧾', size: 'xl', flex: 0 },
+            { type: 'text', text: ' รายการสั่งสินค้า', weight: 'bold', size: 'lg', color: '#333333', gravity: 'center' }
+          ]
+        }]
+      },
+      body: {
+        type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: `ลูกค้า: ${customer}`, size: 'md', weight: 'bold', color: '#333333' },
+          { type: 'separator', margin: 'md' },
+          ...itemContents,
+          { type: 'separator', margin: 'md' },
+          {
+            type: 'box', layout: 'horizontal', margin: 'md',
+            contents: [
+              { type: 'text', text: 'ยอดรวม', weight: 'bold', size: 'lg', color: '#333333', flex: 3 },
+              { type: 'text', text: `${grandTotal} บาท`, weight: 'bold', size: 'lg', color: '#00B900', align: 'end', flex: 2 }
+            ]
+          }
+        ]
+      },
+      footer: {
+        type: 'box', layout: 'horizontal', spacing: 'md', paddingAll: 'lg',
+        contents: [{
+          type: 'button', style: 'primary', color: '#00B900', height: 'md',
+          action: { type: 'postback', label: 'บันทึกลงชีต', data: 'confirm', displayText: '✅ ยืนยันบันทึกบิล' }
+        }, {
+          type: 'button', style: 'secondary', height: 'md',
+          action: { type: 'postback', label: 'ยกเลิก', data: 'cancel', displayText: '🚫 ยกเลิก' }
+        }]
+      }
+    }
+  };
+
+  try {
+    await liff.shareTargetPicker([flexMsg]);
+  } catch (err) {
+    // ถ้า shareTargetPicker ไม่รองรับ ให้ส่งผ่าน Bot แทน
+    await fetch(GAS_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'submitOrder', userId: userProfile.userId, customerName: customer, items: allItems.map(i => ({ name: i.name, qty: i.qty, unit: i.unit })) })
+    });
+    alert('✅ ส่งรายการไปยัง LINE แล้วครับ');
+    liff.closeWindow();
+  }
+}
+
+async function sendImageToLINE() {
+  const imgEl = document.getElementById('previewImg');
+  if (!imgEl.src) { alert('ยังไม่มีรูป'); return; }
+
+  const btn = document.querySelector('[onclick="sendImageToLINE()"]');
+  if (btn) { btn.textContent = '⏳ กำลังอัพโหลด...'; btn.disabled = true; }
+
+  try {
+    const customer = document.getElementById('customerSelect').value;
+
+    // ส่งรูปไปอัพโหลดที่ Apps Script → Google Drive
+    const response = await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'uploadImage',
+        customerName: customer,
+        imageBase64: imgEl.src
+      })
+    });
+
+    // no-cors ไม่สามารถอ่าน response ได้
+    // แจ้งให้ไปดูใน Drive แทน
+    alert('✅ อัพโหลดรูปไปที่ Google Drive แล้วครับ!
+สามารถดูรูปได้จากลิงก์ใน Sheet ครับ');
+
+  } catch (err) {
+    alert('❌ อัพโหลดไม่ได้: ' + err.message);
+  }
+
+  if (btn) { btn.textContent = '📤 เปิดรูปเพื่อบันทึก'; btn.disabled = false; }
+}
+
+function openInBrowser() {
+  // เปิดหน้าปัจจุบันใน browser ปกติ
+  if (liff.isInClient()) {
+    liff.openWindow({
+      url: window.location.href,
+      external: true
+    });
+  } else {
+    alert('กรุณากดค้างที่รูปแล้วเลือก "บันทึกรูปภาพ" ครับ');
+  }
+}
+
+function closePreview() {
+  document.getElementById('imagePreview').style.display = 'none';
+  document.querySelector('.header').style.display = 'block';
+  document.getElementById('customerCard').style.display = 'block';
+  document.getElementById('regularCard').style.display = 'block';
+  document.getElementById('summaryCard').style.display = 'block';
+  document.getElementById('bottomBar').style.display = 'flex';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+init();
+</script>
+</body>
+</html>
