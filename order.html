@@ -191,6 +191,25 @@
 
 <script>
 const LIFF_ID = '2010175558-26n1GZ4C';
+
+// ถ้าเปิดใน External Browser และมี imageData ใน sessionStorage ให้แสดงรูปอย่างเดียว
+if (window.location.search.includes('openExternalBrowser=1')) {
+  document.addEventListener('DOMContentLoaded', function() {
+    const imgData = sessionStorage.getItem('billImage') || localStorage.getItem('billImage');
+    if (imgData) { sessionStorage.removeItem('billImage'); localStorage.removeItem('billImage'); }
+    if (imgData) {
+      document.getElementById('loading').style.display = 'none';
+      document.body.innerHTML = `
+        <div style="padding:16px;background:#f5f5f5;min-height:100vh;display:flex;flex-direction:column;align-items:center;">
+          <img src="${imgData}" style="width:100%;max-width:400px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+          <p style="margin-top:12px;font-size:14px;color:#666;text-align:center;font-family:sans-serif;">
+            📱 กดค้างที่รูปด้านบน<br>แล้วเลือก <b>"บันทึกรูปภาพ"</b>
+          </p>
+        </div>
+      `;
+    }
+  });
+}
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
 
 let allProducts    = [];  // สินค้าทั้งหมดจาก Sheet ราคาสินค้า
@@ -856,11 +875,20 @@ async function shareOrder() {
 }
 
 function sendImageToLINE() {
-  // เปิดหน้าในเบราว์เซอร์ปกติโดยใช้ ?openExternalBrowser=1
-  // แล้วค่อยกดค้างที่รูปเพื่อบันทึก
-  const currentUrl = window.location.href;
-  const separator = currentUrl.includes('?') ? '&' : '?';
-  window.location.href = currentUrl + separator + 'openExternalBrowser=1';
+  const imgEl = document.getElementById('previewImg');
+  if (!imgEl || !imgEl.src) { alert('ยังไม่มีรูป'); return; }
+
+  // บันทึกรูปใน sessionStorage ก่อน แล้วค่อย redirect
+  try {
+    sessionStorage.setItem('billImage', imgEl.src);
+  } catch(e) {
+    // sessionStorage เต็ม ลอง localStorage
+    try { localStorage.setItem('billImage', imgEl.src); } catch(e2) {}
+  }
+
+  // เปิดใน External Browser
+  const baseUrl = window.location.origin + window.location.pathname;
+  window.location.href = baseUrl + '?openExternalBrowser=1';
 }
 
 function openInBrowser() {
