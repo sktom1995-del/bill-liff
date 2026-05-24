@@ -148,7 +148,7 @@
     </div>
     <img id="previewImg" src="" alt="preview">
     <button class="btn-save-img" onclick="sendImageToLINE()" style="margin-top:10px;background:#00B900;width:100%;">
-      🌐 เปิดใน Browser เพื่อบันทึกรูป
+      📸 ส่งรูปเข้า LINE
     </button>
     <p style="font-size:12px;color:#aaa;text-align:center;margin-top:6px;">
       เลือกแชทตัวเอง → กดค้างที่รูป → บันทึกรูปภาพ
@@ -192,24 +192,7 @@
 <script>
 const LIFF_ID = '2010175558-26n1GZ4C';
 
-// ถ้าเปิดใน External Browser และมี imageData ใน sessionStorage ให้แสดงรูปอย่างเดียว
-if (window.location.search.includes('openExternalBrowser=1')) {
-  document.addEventListener('DOMContentLoaded', function() {
-    const imgData = sessionStorage.getItem('billImage') || localStorage.getItem('billImage');
-    if (imgData) { sessionStorage.removeItem('billImage'); localStorage.removeItem('billImage'); }
-    if (imgData) {
-      document.getElementById('loading').style.display = 'none';
-      document.body.innerHTML = `
-        <div style="padding:16px;background:#f5f5f5;min-height:100vh;display:flex;flex-direction:column;align-items:center;">
-          <img src="${imgData}" style="width:100%;max-width:400px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
-          <p style="margin-top:12px;font-size:14px;color:#666;text-align:center;font-family:sans-serif;">
-            📱 กดค้างที่รูปด้านบน<br>แล้วเลือก <b>"บันทึกรูปภาพ"</b>
-          </p>
-        </div>
-      `;
-    }
-  });
-}
+
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
 
 let allProducts    = [];  // สินค้าทั้งหมดจาก Sheet ราคาสินค้า
@@ -874,21 +857,54 @@ async function shareOrder() {
   }
 }
 
-function sendImageToLINE() {
+async function sendImageToLINE() {
   const imgEl = document.getElementById('previewImg');
   if (!imgEl || !imgEl.src) { alert('ยังไม่มีรูป'); return; }
 
-  // บันทึกรูปใน sessionStorage ก่อน แล้วค่อย redirect
+  const btn = document.querySelector('[onclick="sendImageToLINE()"]');
+  if (btn) { btn.textContent = '⏳ กำลังส่งรูปใน LINE...'; btn.disabled = true; }
+
   try {
-    sessionStorage.setItem('billImage', imgEl.src);
-  } catch(e) {
-    // sessionStorage เต็ม ลอง localStorage
-    try { localStorage.setItem('billImage', imgEl.src); } catch(e2) {}
+    const customer = document.getElementById('customerSelect').value;
+    const fileName  = 'bill_' + customer + '_' + Date.now();
+
+    // ส่ง base64 ไป Apps Script ผ่าน GET request
+    // แบ่งเป็น chunk เพราะ URL มี limit
+    const imgData = imgEl.src; // base64 string
+
+    // ส่งผ่าน POST form แทน (ไม่มี no-cors)
+    const form = document.createElement('form');
+    form.method = 'GET';
+    form.action = GAS_URL;
+    form.target = '_blank';
+
+    const params = {
+      action: 'uploadImageAndSend',
+      userId: userProfile.userId,
+      customerName: customer,
+      fileName: fileName,
+      imageData: imgData
+    };
+
+    for (const key in params) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = params[key];
+      form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+
+    alert('✅ กำลังส่งรูปไปใน LINE\nรอสักครู่แล้วเช็คใน LINE ได้เลยครับ');
+
+  } catch (err) {
+    alert('❌ ส่งไม่ได้: ' + err.message);
   }
 
-  // เปิดใน External Browser
-  const baseUrl = window.location.origin + window.location.pathname;
-  window.location.href = baseUrl + '?openExternalBrowser=1';
+  if (btn) { btn.textContent = '📸 ส่งรูปใน LINE'; btn.disabled = false; }
 }
 
 function openInBrowser() {
