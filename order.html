@@ -883,22 +883,27 @@ async function sendImageToLINE() {
     if (!imgbbData.success) throw new Error('ImgBB upload failed: ' + JSON.stringify(imgbbData));
 
     const imageUrl = imgbbData.data.url;
-    console.log('ImgBB URL: ' + imageUrl);
+    Logger && Logger.log('ImgBB URL: ' + imageUrl);
 
-    // ===== Step 2: ส่ง URL ไปให้ Bot ส่งรูปใน LINE =====
+    // ===== Step 2: ส่งรูป + บันทึก Sheet พร้อมกัน =====
+    const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+    const items    = allItems.map(i => ({ name: i.name, qty: i.qty, unit: i.unit }));
+
     await fetch(GAS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: 'sendImageMessage',
+        action: 'sendImageAndSave',
         userId: userProfile.userId,
         customerName: customer,
-        imageUrl: imageUrl
+        imageUrl: imageUrl,
+        items: items
       })
     });
 
-    alert('✅ ส่งรูปไปใน LINE แล้วครับ!\nกดค้างที่รูปเพื่อบันทึกลงเครื่องครับ');
+    alert('✅ ส่งรูปและบันทึก Sheet เรียบร้อยแล้วครับ!\nกดค้างที่รูปใน LINE เพื่อบันทึกลงเครื่องครับ');
+    liff.closeWindow();
 
   } catch (err) {
     alert('❌ เกิดข้อผิดพลาด: ' + err.message);
