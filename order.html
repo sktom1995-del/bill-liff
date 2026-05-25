@@ -300,9 +300,15 @@ async function loadRegularItems() {
 
   regularItems = [];
   extraItems   = [];
+  specialPrices = {}; // reset ราคาพิเศษ
 
-  const res  = await fetch(`${GAS_URL}?action=getRegular&customer=${encodeURIComponent(customer)}`);
-  const data = await res.json();
+  // โหลดรายการประจำ + ราคาพิเศษพร้อมกัน
+  const [regRes, spRes] = await Promise.all([
+    fetch(`${GAS_URL}?action=getRegular&customer=${encodeURIComponent(customer)}`),
+    fetch(`${GAS_URL}?action=getSpecialPrices&customer=${encodeURIComponent(customer)}`)
+  ]);
+  const data = await regRes.json();
+  specialPrices = await spRes.json();
   regularItems = data.map(d => ({ name: d.name, unit: d.unit || 'ถุง', qty: 0 }));
 
   document.getElementById('regularCard').style.display = 'block';
@@ -416,14 +422,21 @@ function calcPrice(item, qty, groupTotals) {
   if (unit === 'หิ้ว' && prod.bagPerHiw) totalBags = qty * prod.bagPerHiw;
   if (unit === 'โล'   && prod.kgPerBag)  totalBags = qty / prod.kgPerBag;
 
-  // ใช้จำนวนถุงรวมกลุ่มถ้ามี groupKey
-  const effectiveBags = (prod.groupKey && groupTotals && groupTotals[prod.groupKey])
-    ? groupTotals[prod.groupKey]
-    : totalBags;
+  // ===== เช็คราคาพิเศษก่อน =====
+  const specialPrice = specialPrices[item.name];
+  let pricePerBag;
 
-  // เช็คเงื่อนไขราคาส่ง
-  const isBulk = prod.minQty && prod.bulkPrice && effectiveBags >= prod.minQty;
-  const pricePerBag = isBulk ? prod.bulkPrice : prod.price;
+  if (specialPrice) {
+    // มีราคาพิเศษ → ใช้เลยไม่เช็คเงื่อนไขส่ง
+    pricePerBag = specialPrice;
+  } else {
+    // ใช้ราคาปกติ + เช็คเงื่อนไขส่ง
+    const effectiveBags = (prod.groupKey && groupTotals && groupTotals[prod.groupKey])
+      ? groupTotals[prod.groupKey]
+      : totalBags;
+    const isBulk = prod.minQty && prod.bulkPrice && effectiveBags >= prod.minQty;
+    pricePerBag = isBulk ? prod.bulkPrice : prod.price;
+  }
 
   // คำนวณราคาต่อหน่วยที่ลูกค้าเลือก
   let pricePerUnit = pricePerBag;
