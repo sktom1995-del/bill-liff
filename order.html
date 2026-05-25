@@ -406,19 +406,16 @@ function calcPrice(item, qty, groupTotals) {
 
 // ==================== UPDATE SUMMARY ====================
 function updateSummary() {
-  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  const allItems    = [...regularItems, ...extraItems].filter(i => i.qty > 0);
   const summaryCard = document.getElementById('summaryCard');
   const summaryList = document.getElementById('summaryList');
-  const shareBtn    = document.getElementById('shareBtn');
 
   if (allItems.length === 0) {
     summaryCard.style.display = 'none';
-    shareBtn.style.display = 'none';
     return;
   }
 
   summaryCard.style.display = 'block';
-  shareBtn.style.display = 'block';
   summaryList.innerHTML = '';
   let grandTotal = 0;
 
