@@ -141,19 +141,7 @@
   </div>
 </div>
 
-  <!-- Image Preview -->
-  <div id="imagePreview" style="padding:8px;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
-      <button onclick="closePreview()" style="background:none;border:none;font-size:13px;color:#888;cursor:pointer;">✕ ปิด</button>
-    </div>
-    <img id="previewImg" src="" alt="preview">
-    <button class="btn-save-img" onclick="sendImageToLINE()" style="margin-top:10px;background:#00B900;width:100%;">
-      📸 ส่งรูปเข้า LINE
-    </button>
-    <p style="font-size:12px;color:#aaa;text-align:center;margin-top:6px;">
-      เลือกแชทตัวเอง → กดค้างที่รูป → บันทึกรูปภาพ
-    </p>
-  </div>
+
 </div>
 
 <!-- Capture Card (hidden) -->
@@ -171,7 +159,7 @@
 <!-- ปุ่มด้านล่าง -->
 <div class="bottom-bar" id="bottomBar" style="display:none">
   <button class="btn-submit" id="submitBtn" onclick="submitOrder()">✅ ยืนยันและส่ง LINE</button>
-  <button class="btn-share" id="shareBtn" onclick="saveAsImage()">📸 บันทึกรูป</button>
+
 </div>
 
 <!-- Modal เพิ่มสินค้า -->
@@ -604,29 +592,49 @@ async function submitOrder() {
   const items = allItems.map(i => ({ name: i.name, qty: i.qty, unit: i.unit }));
 
   try {
-    // สร้างรูปบิล
-    let imageBase64 = null;
-    let billNo = null;
-    try {
-      const result = generateBillImage(customer, allItems);
-      imageBase64 = result.imageBase64;
-      billNo = result.billNo;
-    } catch(e) { Logger && Logger.log(e); }
+    document.getElementById('submitBtn').textContent = '⏳ กำลังสร้างรูป...';
 
+    // ===== Step 1: สร้างรูปบิล =====
+    let imageUrl = null;
+    try {
+      const { imageBase64 } = generateBillImage(customer, allItems);
+
+      document.getElementById('submitBtn').textContent = '⏳ กำลังอัพโหลดรูป...';
+
+      // ===== Step 2: อัพโหลดขึ้น ImgBB =====
+      const base64Data = imageBase64.replace('data:image/png;base64,', '');
+      const formData   = new FormData();
+      formData.append('key', '323f3ae0cacf9ccb4711ef15746f14f5');
+      formData.append('image', base64Data);
+      formData.append('name', 'bill_' + customer + '_' + Date.now());
+
+      const imgbbRes  = await fetch('https://api.imgbb.com/1/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const imgbbData = await imgbbRes.json();
+      if (imgbbData.success) imageUrl = imgbbData.data.url;
+    } catch(imgErr) {
+      console.log('Image error:', imgErr);
+    }
+
+    document.getElementById('submitBtn').textContent = '⏳ กำลังส่ง...';
+
+    // ===== Step 3: ส่งรูป + บันทึก Sheet =====
     await fetch(GAS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: imageBase64 ? 'submitOrderWithImage' : 'submitOrder',
+        action: imageUrl ? 'sendImageAndSave' : 'submitOrder',
         userId: userProfile.userId,
         customerName: customer,
         items,
-        imageBase64,
-        billNo
+        imageUrl
       })
     });
-    alert('✅ ส่งรายการเรียบร้อยแล้ว!\nกรุณาตรวจสอบใน LINE');
+
+    alert('✅ ส่งรายการเรียบร้อยแล้ว!\nกรุณาตรวจสอบรูปใน LINE ครับ');
     liff.closeWindow();
   } catch (err) {
     alert('❌ ส่งไม่ได้: ' + err.message);
