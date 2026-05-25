@@ -230,12 +230,45 @@ async function loadCustomers() {
   });
 }
 
-// ==================== LOAD ALL PRODUCTS ====================
+// ==================== LOAD ALL PRODUCTS (with cache) ====================
 async function loadAllProducts() {
+  const CACHE_KEY     = 'billProducts_v1';
+  const CACHE_EXPIRE  = 'billProducts_expire';
+  const CACHE_MINUTES = 30; // cache 30 นาที
+
+  // เช็ค cache ก่อน
+  try {
+    const expire = localStorage.getItem(CACHE_EXPIRE);
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached && expire && Date.now() < parseInt(expire)) {
+      allProducts = JSON.parse(cached);
+      buildModalCats();
+      // โหลดใหม่ในพื้นหลัง
+      fetch(`${GAS_URL}?action=getProducts`)
+        .then(r => r.json())
+        .then(data => {
+          allProducts = data;
+          localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          localStorage.setItem(CACHE_EXPIRE, Date.now() + CACHE_MINUTES * 60 * 1000);
+        }).catch(() => {});
+      return;
+    }
+  } catch(e) {}
+
+  // โหลดใหม่จาก Apps Script
   const res = await fetch(`${GAS_URL}?action=getProducts`);
   allProducts = await res.json();
 
-  // สร้างแท็บ category ใน modal
+  // บันทึก cache
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts));
+    localStorage.setItem(CACHE_EXPIRE, Date.now() + CACHE_MINUTES * 60 * 1000);
+  } catch(e) {}
+
+  buildModalCats();
+}
+
+function buildModalCats() {
   const cats = [...new Set(allProducts.map(p => p.subCategory).filter(Boolean))];
   modalCategory = cats[0] || '';
   const catsEl = document.getElementById('modalCats');
