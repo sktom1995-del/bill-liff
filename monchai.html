@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>ร้านมนต์ชัย</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', sans-serif; background: #f5f5f5; color: #333; }
+
+    .header { background: #00B900; color: white; padding: 14px 16px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,185,0,0.3); }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .header p { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+
+    #loading { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; gap: 12px; color: #888; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #00B900; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #app { display: none; padding: 12px; max-width: 480px; margin: 0 auto; padding-bottom: 100px; }
+
+    .card { background: white; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card-title { font-size: 13px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+
+    /* SEARCH */
+    .search-wrap { position: relative; margin-bottom: 10px; }
+    .search-wrap input {
+      width: 100%; padding: 10px 16px 10px 38px;
+      border: 1.5px solid #e0e0e0; border-radius: 20px;
+      font-size: 15px; font-family: 'Sarabun', sans-serif;
+      outline: none; transition: border 0.2s;
+    }
+    .search-wrap input:focus { border-color: #00B900; }
+    .search-wrap .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 15px; }
+
+    /* CATEGORY */
+    .cat-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; scrollbar-width: none; }
+    .cat-scroll::-webkit-scrollbar { display: none; }
+    .cat-btn { flex-shrink: 0; padding: 5px 14px; border-radius: 16px; border: 1.5px solid #e0e0e0; background: white; font-size: 13px; font-family: 'Sarabun', sans-serif; cursor: pointer; color: #555; white-space: nowrap; }
+    .cat-btn.active { background: #00B900; border-color: #00B900; color: white; font-weight: 600; }
+
+    /* PRODUCT ROWS */
+    .product-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+    .product-row:last-child { border-bottom: none; }
+    .prod-info { flex: 1; }
+    .product-name { font-size: 14px; font-weight: 600; color: #333; }
+    .product-price { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .qty-box { display: flex; align-items: center; gap: 6px; }
+    .qty-btn { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid #ddd; background: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #555; transition: all 0.15s; }
+    .qty-btn.plus { background: #00B900; border-color: #00B900; color: white; }
+    .qty-btn:active { opacity: 0.7; }
+    .qty-input { width: 44px; padding: 4px; border: 1.5px solid #e0e0e0; border-radius: 6px; font-size: 14px; text-align: center; font-family: 'Sarabun', sans-serif; }
+    .qty-input:focus { outline: none; border-color: #00B900; }
+    .unit-sel { border: 1.5px solid #e0e0e0; border-radius: 6px; padding: 4px 6px; font-size: 12px; font-family: 'Sarabun', sans-serif; background: white; }
+
+    /* SUMMARY */
+    #summaryCard { display: none; }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-name { flex: 1; color: #333; }
+    .summary-calc { color: #888; font-size: 12px; margin: 0 8px; }
+    .summary-amt { font-weight: 700; color: #00B900; }
+    .total-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 4px; }
+    .total-label { font-size: 16px; font-weight: 700; }
+    .total-amount { font-size: 22px; font-weight: 700; color: #00B900; }
+
+    .empty-msg { text-align: center; color: #aaa; padding: 20px; font-size: 14px; }
+
+    /* BOTTOM BAR */
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px; background: white; box-shadow: 0 -2px 12px rgba(0,0,0,0.1); display: flex; gap: 10px; max-width: 480px; margin: 0 auto; }
+    .btn-submit { flex: 1; padding: 13px; background: #00B900; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; }
+    .btn-submit:disabled { background: #ccc; }
+
+    .badge { background: #ff4444; color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🧾 ร้านมนต์ชัย</h1>
+  <p>เลือกสินค้าแล้วกดยืนยัน</p>
+</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div>กำลังโหลดข้อมูล...</div>
+</div>
+
+<div id="app">
+  <!-- ค้นหา + หมวดหมู่ + สินค้า -->
+  <div class="card">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="ค้นหาสินค้า..." oninput="renderProducts()">
+    </div>
+    <div class="cat-scroll" id="catList"></div>
+    <div id="productList"></div>
+  </div>
+
+  <!-- สรุปรายการ -->
+  <div class="card" id="summaryCard">
+    <div class="card-title">สรุปรายการ <span class="badge" id="itemBadge">0</span></div>
+    <div id="summaryList"></div>
+    <div class="total-row">
+      <div class="total-label">ยอดรวม</div>
+      <div class="total-amount" id="totalAmount">0 บาท</div>
+    </div>
+  </div>
+</div>
+
+<!-- ปุ่มด้านล่าง -->
+<div class="bottom-bar" id="bottomBar" style="display:none;">
+  <button class="btn-submit" id="submitBtn" onclick="submitOrder()">✅ ยืนยันและส่ง LINE</button>
+</div>
+
+<script>
+const LIFF_ID   = '2010175558-iO9g05Xg';
+const GAS_URL   = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
+const SHOP_NAME = 'ร้านมนต์ชัย';
+
+let allProducts   = [];
+let selectedItems = {};
+let currentCat    = 'ทั้งหมด';
+let userProfile   = null;
+
+// ==================== INIT ====================
+async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (liff.isLoggedIn()) {
+      try { userProfile = await liff.getProfile(); } catch(e) { userProfile = { userId: 'test-user' }; }
+    } else if (liff.isInClient()) {
+      liff.login(); return;
+    } else {
+      userProfile = { userId: 'test-user' };
+    }
+    await loadProducts();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('bottomBar').style.display = 'flex';
+  } catch(err) {
+    document.getElementById('loading').innerHTML = '<div>❌ โหลดไม่ได้: ' + err.message + '</div>';
+  }
+}
+
+// ==================== LOAD PRODUCTS ====================
+async function loadProducts() {
+  const CACHE_KEY    = 'mcProducts_v2';
+  const CACHE_EXPIRE = 'mcProducts_exp_v2';
+  const CACHE_MIN    = 30;
+  try {
+    const exp    = localStorage.getItem(CACHE_EXPIRE);
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached && exp && Date.now() < parseInt(exp)) {
+      allProducts = JSON.parse(cached);
+      buildCats(); renderProducts();
+      fetch(GAS_URL + '?action=getProducts').then(r => r.json()).then(d => {
+        allProducts = d;
+        localStorage.setItem(CACHE_KEY, JSON.stringify(d));
+        localStorage.setItem(CACHE_EXPIRE, Date.now() + CACHE_MIN * 60 * 1000);
+      }).catch(() => {});
+      return;
+    }
+  } catch(e) {}
+  const res   = await fetch(GAS_URL + '?action=getProducts');
+  allProducts = await res.json();
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts));
+    localStorage.setItem(CACHE_EXPIRE, Date.now() + CACHE_MIN * 60 * 1000);
+  } catch(e) {}
+  buildCats(); renderProducts();
+}
+
+// ==================== BUILD CATS ====================
+function buildCats() {
+  const cats = ['ทั้งหมด', ...new Set(allProducts.map(p => p.subCategory).filter(Boolean))];
+  const el   = document.getElementById('catList');
+  el.innerHTML = '';
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (cat === currentCat ? ' active' : '');
+    btn.textContent = cat;
+    btn.onclick = () => { currentCat = cat; buildCats(); renderProducts(); };
+    el.appendChild(btn);
+  });
+}
+
+// ==================== RENDER PRODUCTS ====================
+function renderProducts() {
+  const search   = document.getElementById('searchInput').value.trim().toLowerCase();
+  const list     = document.getElementById('productList');
+  const filtered = allProducts.filter(p => {
+    const matchCat    = currentCat === 'ทั้งหมด' || p.subCategory === currentCat;
+    const matchSearch = !search || p.name.toLowerCase().includes(search);
+    return matchCat && matchSearch;
+  });
+
+  list.innerHTML = '';
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-msg">ไม่พบสินค้าครับ</div>';
+    return;
+  }
+
+  filtered.forEach(p => {
+    const idx  = allProducts.indexOf(p);
+    const sel  = selectedItems[idx];
+    const qty  = sel ? sel.qty : 0;
+    const unit = sel ? sel.unit : 'ถุง';
+    const units    = ['ถุง'];
+    if (p.bagPerHiw) units.push('หิ้ว');
+    if (p.kgPerBag)  units.push('โล');
+    const unitOpts = units.map(u => '<option value="' + u + '"' + (u === unit ? ' selected' : '') + '>' + u + '</option>').join('');
+    const name = p.name.split('หรือ')[0].trim();
+    const row  = document.createElement('div');
+    row.className = 'product-row';
+    row.innerHTML =
+      '<div class="prod-info">' +
+        '<div class="product-name">' + name + '</div>' +
+        '<div class="product-price">' + p.price + ' บ./ถุง' + (p.bulkPrice ? ' · ส่ง ' + p.bulkPrice + ' บ.' : '') + '</div>' +
+      '</div>' +
+      '<div class="qty-box">' +
+        '<button class="qty-btn" onclick="changeQty(' + idx + ', -1)">−</button>' +
+        '<input class="qty-input" type="number" min="0" value="' + qty + '" oninput="setQty(' + idx + ', this.value)">' +
+        '<button class="qty-btn plus" onclick="changeQty(' + idx + ', 1)">+</button>' +
+        '<select class="unit-sel" onchange="setUnit(' + idx + ', this.value)">' + unitOpts + '</select>' +
+      '</div>';
+    list.appendChild(row);
+  });
+}
+
+// ==================== QTY CONTROLS ====================
+function changeQty(idx, delta) {
+  const sel = selectedItems[idx] || { qty: 0, unit: 'ถุง' };
+  sel.qty   = Math.max(0, (sel.qty || 0) + delta);
+  if (sel.qty > 0) selectedItems[idx] = sel;
+  else delete selectedItems[idx];
+  renderProducts();
+  updateSummary();
+}
+function setQty(idx, val) {
+  const qty = Math.max(0, parseInt(val) || 0);
+  const sel = selectedItems[idx] || { qty: 0, unit: 'ถุง' };
+  sel.qty   = qty;
+  if (qty > 0) selectedItems[idx] = sel;
+  else delete selectedItems[idx];
+  updateSummary();
+}
+function setUnit(idx, unit) {
+  if (!selectedItems[idx]) selectedItems[idx] = { qty: 0, unit };
+  selectedItems[idx].unit = unit;
+  updateSummary();
+}
+
+// ==================== CALC GROUP TOTALS ====================
+function calcGroupTotals() {
+  const groupTotals = {};
+  Object.keys(selectedItems).forEach(function(idx) {
+    const p   = allProducts[idx];
+    const sel = selectedItems[idx];
+    if (!p || !sel.qty) return;
+    if (p.groupKey) {
+      let totalBags = sel.qty;
+      if (sel.unit === 'หิ้ว' && p.bagPerHiw) totalBags = sel.qty * p.bagPerHiw;
+      if (sel.unit === 'โล'   && p.kgPerBag)  totalBags = sel.qty / p.kgPerBag;
+      groupTotals[p.groupKey] = (groupTotals[p.groupKey] || 0) + totalBags;
+    }
+  });
+  return groupTotals;
+}
+
+// ==================== CALC PRICE ====================
+function calcPrice(p, qty, unit, groupTotals) {
+  let totalBags = qty;
+  if (unit === 'หิ้ว' && p.bagPerHiw) totalBags = qty * p.bagPerHiw;
+  if (unit === 'โล'   && p.kgPerBag)  totalBags = qty / p.kgPerBag;
+  const effectiveBags = (p.groupKey && groupTotals && groupTotals[p.groupKey]) ? groupTotals[p.groupKey] : totalBags;
+  const isBulk        = p.minQty && p.bulkPrice && effectiveBags >= p.minQty;
+  const pricePerBag   = isBulk ? p.bulkPrice : p.price;
+  let pricePerUnit    = pricePerBag;
+  if (unit === 'หิ้ว' && p.bagPerHiw) pricePerUnit = pricePerBag * p.bagPerHiw;
+  else if (unit === 'โล' && p.kgPerBag) pricePerUnit = pricePerBag / p.kgPerBag;
+  return { totalBags, pricePerUnit, itemTotal: pricePerUnit * qty };
+}
+
+// ==================== UPDATE SUMMARY ====================
+function updateSummary() {
+  const keys        = Object.keys(selectedItems).filter(function(i) { return selectedItems[i].qty > 0; });
+  const summaryCard = document.getElementById('summaryCard');
+  const summaryList = document.getElementById('summaryList');
+  document.getElementById('itemBadge').textContent = keys.length;
+
+  if (keys.length === 0) { summaryCard.style.display = 'none'; return; }
+
+  summaryCard.style.display = 'block';
+  summaryList.innerHTML = '';
+  let grandTotal    = 0;
+  const groupTotals = calcGroupTotals();
+
+  keys.forEach(function(idx) {
+    const p   = allProducts[idx];
+    const sel = selectedItems[idx];
+    const { pricePerUnit, itemTotal } = calcPrice(p, sel.qty, sel.unit, groupTotals);
+    grandTotal += itemTotal;
+    const name = p.name.split('หรือ')[0].trim();
+    const row  = document.createElement('div');
+    row.className = 'summary-row';
+    row.innerHTML =
+      '<div class="summary-name">' + name + '</div>' +
+      '<div class="summary-calc">' + sel.qty + sel.unit + '×' + pricePerUnit + 'บ.</div>' +
+      '<div class="summary-amt">' + itemTotal + ' บ.</div>';
+    summaryList.appendChild(row);
+  });
+  document.getElementById('totalAmount').textContent = grandTotal + ' บาท';
+}
+
+// ==================== GENERATE BILL IMAGE ====================
+function generateBillImage() {
+  const keys = Object.keys(selectedItems).filter(function(i) { return selectedItems[i].qty > 0; });
+  const now  = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  let grandTotal    = 0;
+  const groupTotals = calcGroupTotals();
+  const rows = keys.map(function(idx) {
+    const p   = allProducts[idx];
+    const sel = selectedItems[idx];
+    const { pricePerUnit, itemTotal } = calcPrice(p, sel.qty, sel.unit, groupTotals);
+    grandTotal += itemTotal;
+    return { name: p.name.split('หรือ')[0].trim(), calc: sel.qty + sel.unit + '×' + pricePerUnit + 'บ.', total: itemTotal };
+  });
+
+  const W = 360, ROW_H = 36;
+  const H = 150 + rows.length * ROW_H + 60;
+  const canvas = document.createElement('canvas');
+  canvas.width = W * 2; canvas.height = H * 2;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);
+
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#00B900'; ctx.fillRect(0, 0, W, 56);
+  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 17px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('🧾 ' + SHOP_NAME, W/2, 28);
+  ctx.font = '12px sans-serif';
+  ctx.fillText('วันที่ ' + now, W/2, 46);
+  ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(16, 68); ctx.lineTo(W-16, 68); ctx.stroke();
+
+  let y = 88;
+  rows.forEach(function(row) {
+    ctx.fillStyle = '#333'; ctx.font = '13px sans-serif'; ctx.textAlign = 'left';
+    var name = row.name;
+    if (ctx.measureText(name).width > 155) {
+      while (ctx.measureText(name + '...').width > 155) name = name.slice(0, -1);
+      name += '...';
+    }
+    ctx.fillText(name, 16, y);
+    ctx.fillStyle = '#888'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(row.calc, W/2, y);
+    ctx.fillStyle = '#00B900'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(row.total + ' บ.', W-16, y);
+    y += ROW_H;
+    ctx.strokeStyle = '#f5f5f5'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(16, y-8); ctx.lineTo(W-16, y-8); ctx.stroke();
+  });
+
+  y += 8;
+  ctx.strokeStyle = '#00B900'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(16, y); ctx.lineTo(W-16, y); ctx.stroke();
+  y += 26;
+  ctx.fillStyle = '#333'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('ยอดรวมทั้งสิ้น', 16, y);
+  ctx.fillStyle = '#00B900'; ctx.font = 'bold 19px sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText(grandTotal + ' บาท', W-16, y);
+
+  return { imageBase64: canvas.toDataURL('image/png'), grandTotal };
+}
+
+// ==================== SUBMIT ====================
+async function submitOrder() {
+  const keys = Object.keys(selectedItems).filter(function(i) { return selectedItems[i].qty > 0; });
+  if (keys.length === 0) { alert('กรุณาเลือกสินค้าอย่างน้อย 1 รายการครับ'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '⏳ กำลังสร้างรูป...';
+
+  try {
+    const items = keys.map(function(idx) {
+      const p   = allProducts[idx];
+      const sel = selectedItems[idx];
+      return { name: p.name.split('หรือ')[0].trim(), qty: sel.qty, unit: sel.unit };
+    });
+
+    let imageUrl = null;
+    try {
+      const { imageBase64 } = generateBillImage();
+      btn.textContent = '⏳ กำลังอัพโหลดรูป...';
+      const base64Data = imageBase64.replace('data:image/png;base64,', '');
+      const formData   = new FormData();
+      formData.append('key', '323f3ae0cacf9ccb4711ef15746f14f5');
+      formData.append('image', base64Data);
+      formData.append('name', 'bill_montchai_' + Date.now());
+      const imgRes  = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
+      const imgData = await imgRes.json();
+      if (imgData.success) imageUrl = imgData.data.url;
+    } catch(e) { console.log('image error:', e); }
+
+    btn.textContent = '⏳ กำลังส่ง...';
+    await fetch(GAS_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: imageUrl ? 'sendImageAndSave' : 'submitOrder',
+        userId: userProfile.userId,
+        customerName: SHOP_NAME,
+        items, imageUrl
+      })
+    });
+
+    alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nกรุณาตรวจสอบรูปใน LINE');
+    liff.closeWindow();
+  } catch(err) {
+    alert('❌ ส่งไม่ได้: ' + err.message);
+  }
+
+  btn.disabled = false; btn.textContent = '✅ ยืนยันและส่ง LINE';
+}
+
+init();
+</script>
+</body>
+</html>
