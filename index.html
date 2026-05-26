@@ -186,7 +186,7 @@
 </div>
 
 <script>
-const LIFF_ID = '2010175558-Kx8zQ0k1';
+const LIFF_ID = '2010175558-iO9g05Xg';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
 const SHOP_NAME = 'ลูกชิ้นมนต์ชัย';
 
@@ -200,11 +200,12 @@ async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
     if (liff.isLoggedIn()) {
-      try { userProfile = await liff.getProfile(); } catch(e) { userProfile = { userId: 'test' }; }
+      try { userProfile = await liff.getProfile(); } catch(e) { userProfile = { userId: 'test-user' }; }
     } else if (liff.isInClient()) {
       liff.login(); return;
     } else {
-      userProfile = { userId: 'test' };
+      // เปิดนอก LINE (browser ปกติ) ให้ใช้งานได้แต่ไม่มี profile
+      userProfile = { userId: 'test-user' };
     }
 
     await loadProducts();
