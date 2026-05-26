@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>สินค้าลูกชิ้นมนต์ชัย</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', sans-serif; background: #f5f5f5; color: #333; }
+
+    .header {
+      background: #00B900; color: white; padding: 14px 16px;
+      text-align: center; position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,185,0,0.3);
+    }
+    .header h1 { font-size: 18px; font-weight: 700; }
+    .header p  { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+
+    /* TABS */
+    .tabs { display: flex; background: white; border-bottom: 2px solid #e0e0e0; position: sticky; top: 58px; z-index: 99; }
+    .tab  { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600; color: #888; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+    .tab.active { color: #00B900; border-bottom-color: #00B900; }
+
+    .page { display: none; padding: 12px; padding-bottom: 80px; }
+    .page.active { display: block; }
+
+    /* SEARCH */
+    .search-box { position: relative; margin-bottom: 12px; }
+    .search-box input {
+      width: 100%; padding: 10px 16px 10px 40px;
+      border: 2px solid #e0e0e0; border-radius: 20px;
+      font-size: 15px; font-family: 'Sarabun', sans-serif;
+      outline: none; transition: border 0.2s;
+    }
+    .search-box input:focus { border-color: #00B900; }
+    .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #aaa; }
+
+    /* CATEGORY */
+    .cat-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; }
+    .cat-scroll::-webkit-scrollbar { display: none; }
+    .cat-btn {
+      white-space: nowrap; padding: 6px 14px; border-radius: 20px;
+      border: 1.5px solid #e0e0e0; background: white;
+      font-family: 'Sarabun', sans-serif; font-size: 13px;
+      cursor: pointer; transition: all 0.2s; color: #555;
+    }
+    .cat-btn.active { background: #00B900; color: white; border-color: #00B900; }
+
+    /* PRODUCT */
+    .product-list { display: flex; flex-direction: column; gap: 8px; }
+    .product-item {
+      background: white; border-radius: 10px; padding: 12px 14px;
+      display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      border: 2px solid transparent; transition: border 0.2s;
+    }
+    .product-item.selected { border-color: #00B900; }
+    .prod-info { flex: 1; }
+    .prod-name { font-size: 14px; font-weight: 600; }
+    .prod-price { font-size: 12px; color: #888; margin-top: 2px; }
+    .qty-controls { display: flex; align-items: center; gap: 6px; }
+    .qty-btn {
+      width: 30px; height: 30px; border-radius: 50%; border: none;
+      background: #f0f0f0; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: #333; line-height: 1;
+    }
+    .qty-btn.plus { background: #00B900; color: white; }
+    .qty-input {
+      width: 40px; text-align: center; border: 1.5px solid #e0e0e0;
+      border-radius: 6px; padding: 4px; font-size: 14px;
+      font-family: 'Sarabun', sans-serif;
+    }
+    .unit-sel {
+      border: 1.5px solid #e0e0e0; border-radius: 6px; padding: 4px 6px;
+      font-size: 12px; font-family: 'Sarabun', sans-serif; background: white;
+    }
+
+    /* SUMMARY */
+    .summary-card {
+      background: white; border-radius: 10px; padding: 16px;
+      margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .summary-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; color: #333; }
+    .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-name { flex: 1; }
+    .summary-qty  { color: #888; margin: 0 8px; }
+
+    /* HOW TO ORDER */
+    .how-to {
+      background: #e8f5e9; border: 1px solid #00B900; border-radius: 10px;
+      padding: 14px; margin-bottom: 12px;
+    }
+    .how-to h3 { font-size: 14px; font-weight: 700; color: #00B900; margin-bottom: 8px; }
+    .how-to p  { font-size: 13px; color: #555; line-height: 1.8; }
+
+    /* COPY BOX */
+    .copy-box {
+      background: #f9f9f9; border: 1.5px solid #e0e0e0; border-radius: 10px;
+      padding: 14px; margin-bottom: 12px; font-size: 14px;
+      white-space: pre-wrap; color: #333; line-height: 1.8;
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    .empty-msg { text-align: center; color: #aaa; padding: 40px 20px; font-size: 15px; }
+
+    /* BOTTOM BAR */
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: white; padding: 12px 16px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      display: flex; gap: 10px;
+    }
+    .btn-tab {
+      padding: 12px 16px; background: #f0f0f0; color: #333;
+      border: none; border-radius: 10px; font-size: 14px; font-weight: 600;
+      font-family: 'Sarabun', sans-serif; cursor: pointer; position: relative;
+    }
+    .btn-copy {
+      flex: 1; padding: 12px; background: #00B900; color: white;
+      border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+      font-family: 'Sarabun', sans-serif; cursor: pointer;
+    }
+    .btn-copy:disabled { background: #aaa; }
+    .badge {
+      position: absolute; top: -6px; right: -6px; background: #ff4444;
+      color: white; border-radius: 50%; width: 20px; height: 20px;
+      font-size: 11px; display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+
+    #loading { text-align: center; padding: 60px 20px; color: #888; }
+    .spinner {
+      width: 36px; height: 36px; border: 3px solid #e0e0e0;
+      border-top-color: #00B900; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .copied-msg {
+      display: none; text-align: center; color: #00B900;
+      font-weight: 700; padding: 8px; font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  กำลังโหลดสินค้า...
+</div>
+
+<div id="app" style="display:none;">
+  <div class="header">
+    <h1>🧾 ลูกชิ้นมนต์ชัย</h1>
+    <p>เลือกสินค้าแล้วก็อปรายการสั่งได้เลยครับ</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('catalog')">🛒 เลือกสินค้า</div>
+    <div class="tab" onclick="switchTab('order')" id="orderTab">📋 รายการของฉัน</div>
+  </div>
+
+  <!-- หน้าเลือกสินค้า -->
+  <div class="page active" id="catalogPage">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="ค้นหาสินค้า..." oninput="renderProducts()">
+    </div>
+    <div class="cat-scroll" id="catList"></div>
+    <div class="product-list" id="productList"></div>
+  </div>
+
+  <!-- หน้ารายการ -->
+  <div class="page" id="orderPage">
+    <div class="summary-card" id="summaryCard">
+      <div class="empty-msg">ยังไม่มีสินค้าที่เลือกครับ<br>กลับไปเลือกสินค้าได้เลย 😊</div>
+    </div>
+
+    <div id="orderContent" style="display:none;">
+      <div class="how-to">
+        <h3>📱 วิธีสั่งสินค้า</h3>
+        <p>1. กดปุ่ม <b>"📋 ก็อปปี้รายการ"</b> ด้านล่าง<br>
+           2. เปิดแชท <b>"ร้านลูกชิ้น"</b> ใน LINE<br>
+           3. วางข้อความแล้วกดส่งได้เลยครับ ✅</p>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-title">📋 รายการที่เลือก</div>
+        <div id="summaryList"></div>
+      </div>
+
+      <div class="copy-box" id="copyBox"></div>
+      <div class="copied-msg" id="copiedMsg">✅ ก็อปปี้แล้ว! เปิด LINE แล้ววางข้อความได้เลยครับ</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Bar -->
+<div class="bottom-bar" id="bottomBar" style="display:none;">
+  <button class="btn-tab" onclick="switchTab('catalog')">
+    🛒 สินค้า
+  </button>
+  <button class="btn-tab" onclick="switchTab('order')" id="cartBtn">
+    🛍️ ตะกร้า
+    <div class="badge" id="badge" style="display:none;">0</div>
+  </button>
+  <button class="btn-copy" id="copyBtn" onclick="copyOrder()" disabled>📋 ก็อปปี้รายการ</button>
+</div>
+
+<script>
+const GAS_URL   = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
+const SHOP_NAME = 'ร้านลูกชิ้น';
+
+let allProducts  = [];
+let selectedItems = {};
+let currentCat   = 'ทั้งหมด';
+
+// ==================== INIT ====================
+async function init() {
+  try {
+    await loadProducts();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('bottomBar').style.display = 'flex';
+  } catch(err) {
+    document.getElementById('loading').innerHTML = '<div>❌ โหลดไม่ได้: ' + err.message + '</div>';
+  }
+}
+
+// ==================== LOAD PRODUCTS ====================
+async function loadProducts() {
+  const CACHE_KEY = 'catalogProducts_v1';
+  const CACHE_EXP = 'catalogProducts_exp';
+
+  try {
+    const exp    = localStorage.getItem(CACHE_EXP);
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached && exp && Date.now() < parseInt(exp)) {
+      allProducts = JSON.parse(cached);
+      buildCats(); renderProducts();
+      fetch(`${GAS_URL}?action=getProducts`).then(r => r.json()).then(d => {
+        allProducts = d;
+        localStorage.setItem(CACHE_KEY, JSON.stringify(d));
+        localStorage.setItem(CACHE_EXP, Date.now() + 30 * 60 * 1000);
+      }).catch(() => {});
+      return;
+    }
+  } catch(e) {}
+
+  const res   = await fetch(`${GAS_URL}?action=getProducts`);
+  allProducts = await res.json();
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts));
+    localStorage.setItem(CACHE_EXP, Date.now() + 30 * 60 * 1000);
+  } catch(e) {}
+  buildCats();
+  renderProducts();
+}
+
+// ==================== BUILD CATS ====================
+function buildCats() {
+  const cats = ['ทั้งหมด', ...new Set(allProducts.map(p => p.subCategory).filter(Boolean))];
+  const el   = document.getElementById('catList');
+  el.innerHTML = '';
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (cat === currentCat ? ' active' : '');
+    btn.textContent = cat;
+    btn.onclick = () => { currentCat = cat; buildCats(); renderProducts(); };
+    el.appendChild(btn);
+  });
+}
+
+// ==================== RENDER PRODUCTS ====================
+function renderProducts() {
+  const search   = document.getElementById('searchInput').value.trim().toLowerCase();
+  const list     = document.getElementById('productList');
+  const filtered = allProducts.filter(p => {
+    const matchCat    = currentCat === 'ทั้งหมด' || p.subCategory === currentCat;
+    const matchSearch = !search || p.name.toLowerCase().includes(search);
+    return matchCat && matchSearch;
+  });
+
+  list.innerHTML = '';
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-msg">ไม่พบสินค้าครับ</div>';
+    return;
+  }
+
+  filtered.forEach(p => {
+    const idx = allProducts.indexOf(p);
+    const sel = selectedItems[idx];
+    const qty = sel ? sel.qty : 0;
+    const unit = sel ? sel.unit : 'ถุง';
+
+    const units   = ['ถุง'];
+    if (p.bagPerHiw) units.push('หิ้ว');
+    if (p.kgPerBag)  units.push('โล');
+    const unitOpts = units.map(u => `<option value="${u}" ${u === unit ? 'selected' : ''}>${u}</option>`).join('');
+
+    const item = document.createElement('div');
+    item.className = 'product-item' + (qty > 0 ? ' selected' : '');
+    item.innerHTML = `
+      <div class="prod-info">
+        <div class="prod-name">${p.name.split('หรือ')[0].trim()}</div>
+      </div>
+      <div class="qty-controls">
+        <button class="qty-btn" onclick="changeQty(${idx}, -1)">−</button>
+        <input class="qty-input" type="number" min="0" value="${qty}" oninput="setQty(${idx}, this.value)">
+        <button class="qty-btn plus" onclick="changeQty(${idx}, 1)">+</button>
+        <select class="unit-sel" onchange="setUnit(${idx}, this.value)">${unitOpts}</select>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+// ==================== QTY ====================
+function changeQty(idx, delta) {
+  const sel = selectedItems[idx] || { qty: 0, unit: 'ถุง' };
+  sel.qty   = Math.max(0, (sel.qty || 0) + delta);
+  if (sel.qty > 0) selectedItems[idx] = sel;
+  else delete selectedItems[idx];
+  updateBadge();
+  renderProducts();
+  updateOrderPage();
+}
+
+function setQty(idx, val) {
+  const qty = Math.max(0, parseInt(val) || 0);
+  const sel = selectedItems[idx] || { qty: 0, unit: 'ถุง' };
+  sel.qty   = qty;
+  if (qty > 0) selectedItems[idx] = sel;
+  else delete selectedItems[idx];
+  updateBadge();
+  updateOrderPage();
+}
+
+function setUnit(idx, unit) {
+  if (!selectedItems[idx]) selectedItems[idx] = { qty: 0, unit };
+  selectedItems[idx].unit = unit;
+  updateOrderPage();
+}
+
+function updateBadge() {
+  const count = Object.keys(selectedItems).filter(i => selectedItems[i].qty > 0).length;
+  const badge = document.getElementById('badge');
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+  document.getElementById('copyBtn').disabled = count === 0;
+}
+
+// ==================== UPDATE ORDER PAGE ====================
+function updateOrderPage() {
+  const keys = Object.keys(selectedItems).filter(i => selectedItems[i].qty > 0);
+  const summaryCard   = document.getElementById('summaryCard');
+  const orderContent  = document.getElementById('orderContent');
+
+  if (keys.length === 0) {
+    summaryCard.innerHTML = '<div class="empty-msg">ยังไม่มีสินค้าที่เลือกครับ<br>กลับไปเลือกสินค้าได้เลย 😊</div>';
+    summaryCard.style.display = 'block';
+    orderContent.style.display = 'none';
+    return;
+  }
+
+  summaryCard.style.display = 'none';
+  orderContent.style.display = 'block';
+
+  // สรุปรายการ
+  const summaryList = document.getElementById('summaryList');
+  summaryList.innerHTML = '';
+  let orderText = 'สั่งสินค้าจากลูกชิ้นมนต์ชัยครับ\n';
+  keys.forEach(idx => {
+    const p   = allProducts[idx];
+    const sel = selectedItems[idx];
+    const name = p.name.split('หรือ')[0].trim();
+
+    const row = document.createElement('div');
+    row.className = 'summary-row';
+    row.innerHTML = `
+      <div class="summary-name">${name}</div>
+      <div class="summary-qty">${sel.qty} ${sel.unit}</div>
+    `;
+    summaryList.appendChild(row);
+    orderText += `- ${name} ${sel.qty} ${sel.unit}\n`;
+  });
+
+  document.getElementById('copyBox').textContent = orderText.trim();
+}
+
+// ==================== COPY ====================
+function copyOrder() {
+  const keys = Object.keys(selectedItems).filter(i => selectedItems[i].qty > 0);
+  if (keys.length === 0) return;
+
+  let orderText = 'สั่งสินค้าจากลูกชิ้นมนต์ชัยครับ\n';
+  keys.forEach(idx => {
+    const p    = allProducts[idx];
+    const sel  = selectedItems[idx];
+    const name = p.name.split('หรือ')[0].trim();
+    orderText += `- ${name} ${sel.qty} ${sel.unit}\n`;
+  });
+
+  navigator.clipboard.writeText(orderText.trim()).then(() => {
+    const msg = document.getElementById('copiedMsg');
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+  }).catch(() => {
+    // Fallback สำหรับมือถือ
+    const el = document.createElement('textarea');
+    el.value = orderText.trim();
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    const msg = document.getElementById('copiedMsg');
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+  });
+}
+
+// ==================== SWITCH TAB ====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'catalog') || (i === 1 && tab === 'order'));
+  });
+  document.getElementById('catalogPage').classList.toggle('active', tab === 'catalog');
+  document.getElementById('orderPage').classList.toggle('active', tab === 'order');
+  if (tab === 'order') updateOrderPage();
+}
+
+init();
+</script>
+</body>
+</html>
