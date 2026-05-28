@@ -73,6 +73,8 @@
     .btn-submit { flex: 2; padding: 13px; background: #00B900; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; }
     .btn-submit:disabled { background: #ccc; }
     .btn-share { flex: 1; padding: 13px; background: white; color: #00B900; border: 2px solid #00B900; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; display: none; }
+    .btn-pdf { flex: 1; padding: 13px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; }
+    .btn-pdf:disabled { background: #aaa; }
 
     /* IMAGE PREVIEW */
     #imagePreview { display: none; text-align: center; }
@@ -159,7 +161,7 @@
 <!-- ปุ่มด้านล่าง -->
 <div class="bottom-bar" id="bottomBar" style="display:none">
   <button class="btn-submit" id="submitBtn" onclick="submitOrder()">✅ ยืนยันและส่ง LINE</button>
-
+  <button class="btn-pdf" id="pdfBtn" onclick="generatePDF()" style="display:none">🖨️ PDF</button>
 </div>
 
 <!-- Modal เพิ่มสินค้า -->
@@ -690,6 +692,8 @@ async function submitOrder() {
 
   document.getElementById('submitBtn').disabled = false;
   document.getElementById('submitBtn').textContent = '✅ ยืนยันและส่ง LINE';
+  // แสดงปุ่ม PDF หลังส่งสำเร็จ
+  document.getElementById('pdfBtn').style.display = 'block';
 }
 
 // ==================== SAVE AS IMAGE (Canvas) ====================
@@ -835,6 +839,64 @@ function saveAsImage() {
 }
 
 // ==================== SHARE (เก่า ไม่ใช้แล้ว) ====================
+// ==================== GENERATE PDF ====================
+async function generatePDF() {
+  const customer = document.getElementById('customerSelect').value;
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  if (!customer || allItems.length === 0) return;
+
+  const pdfBtn = document.getElementById('pdfBtn');
+  pdfBtn.disabled = true;
+  pdfBtn.textContent = '⏳ กำลังสร้าง PDF...';
+
+  // เตรียม items พร้อม displayLabel
+  const groupTotals = calcGroupTotals(allItems);
+  let grandTotal = 0;
+  const itemsWithLabel = allItems.map(item => {
+    const { pricePerUnit, total, totalBags } = calcPrice(item, item.qty, groupTotals);
+    grandTotal += total;
+    const prod = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+    let displayLabel = '';
+    const unit = item.unit || 'ถุง';
+    if (unit === 'หิ้ว' && prod?.bagPerHiw) {
+      displayLabel = `${item.name}|${item.qty}หิ้ว×${pricePerUnit}บ.|${total}`;
+    } else if (unit === 'ลัง' && prod?.bagPerLang) {
+      displayLabel = `${item.name}|${item.qty}ลัง(${totalBags}ถุง)×${pricePerUnit/item.qty}บ.|${total}`;
+    } else {
+      displayLabel = `${item.name}|${totalBags}ถุง×${pricePerUnit}บ.|${total}`;
+    }
+    return { name: item.name, qty: item.qty, unit, displayLabel, total };
+  });
+
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'generatePDF',
+        customerName: customer,
+        items: itemsWithLabel,
+        grandTotal
+      })
+    });
+    const data = await res.json();
+    if (data.ok && data.pdfUrl) {
+      // เปิด PDF ในแท็บใหม่
+      window.open(data.pdfUrl, '_blank');
+      pdfBtn.textContent = '🖨️ PDF';
+      pdfBtn.disabled = false;
+    } else {
+      alert('สร้าง PDF ไม่สำเร็จ: ' + (data.error || 'unknown'));
+      pdfBtn.textContent = '🖨️ PDF';
+      pdfBtn.disabled = false;
+    }
+  } catch(e) {
+    alert('เกิดข้อผิดพลาด: ' + e);
+    pdfBtn.textContent = '🖨️ PDF';
+    pdfBtn.disabled = false;
+  }
+}
+
 async function shareOrder() {
   const customer  = document.getElementById('customerSelect').value;
   const allItems  = [...regularItems, ...extraItems].filter(i => i.qty > 0);
