@@ -708,12 +708,33 @@ function printBill() {
       </div>
     </div>`;
 
-  // ใส่ใน printArea แล้วสั่งปริ้น
-  const printArea = document.getElementById('printArea');
-  printArea.innerHTML = printHtml;
-  printArea.style.display = 'block';
-  window.print();
-  printArea.style.display = 'none';
+  // เปิดหน้าใหม่แล้วปริ้น (window.print() ไม่ทำงานใน LIFF WebView)
+  const fullHtml = `<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Sarabun',sans-serif; width:80mm; }
+  @media print { @page { size:80mm auto; margin:0; } }
+  .print-btn { 
+    display:block; width:100%; padding:12px; margin:12px 0;
+    background:#1a73e8; color:white; border:none; border-radius:8px;
+    font-size:16px; font-weight:bold; cursor:pointer;
+    font-family:'Sarabun',sans-serif;
+  }
+  @media print { .print-btn { display:none; } }
+</style>
+</head><body>
+  <button class="print-btn" onclick="window.print()">🖨️ กดปริ้นที่นี่</button>
+  ${printHtml}
+  <button class="print-btn" onclick="window.print()">🖨️ กดปริ้นที่นี่</button>
+</body></html>`;
+
+  const blob = new Blob([fullHtml], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 
 async function submitOrder() {
