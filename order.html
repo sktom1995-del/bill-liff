@@ -379,8 +379,9 @@ function getUnitOptions(name, currentUnit) {
     p.name.split('หรือ')[0].trim() === name || p.name.includes(name)
   );
   const units = ['ถุง'];
-  if (prod && prod.bagPerHiw) units.push('หิ้ว');
-  if (prod && prod.kgPerBag)  units.push('โล');
+  if (prod && prod.bagPerHiw)  units.push('หิ้ว');
+  if (prod && prod.kgPerBag)   units.push('โล');
+  if (prod && prod.bagPerLang) units.push('ลัง');
   return units.map(u =>
     '<option value="' + u + '"' + (u === currentUnit ? ' selected' : '') + '>' + u + '</option>'
   ).join('');
@@ -402,8 +403,9 @@ function calcGroupTotals(allItems) {
     if (prod && prod.groupKey) {
       let totalBags = item.qty;
       const unit = item.unit || 'ถุง';
-      if (unit === 'หิ้ว' && prod.bagPerHiw) totalBags = item.qty * prod.bagPerHiw;
-      if (unit === 'โล'   && prod.kgPerBag)  totalBags = item.qty / prod.kgPerBag;
+      if (unit === 'หิ้ว' && prod.bagPerHiw)  totalBags = item.qty * prod.bagPerHiw;
+      if (unit === 'โล'   && prod.kgPerBag)   totalBags = item.qty / prod.kgPerBag;
+      if (unit === 'ลัง'  && prod.bagPerLang) totalBags = item.qty * prod.bagPerLang;
       groupTotals[prod.groupKey] = (groupTotals[prod.groupKey] || 0) + totalBags;
     }
   });
@@ -419,8 +421,9 @@ function calcPrice(item, qty, groupTotals) {
 
   let totalBags = qty;
   const unit = item.unit || 'ถุง';
-  if (unit === 'หิ้ว' && prod.bagPerHiw) totalBags = qty * prod.bagPerHiw;
-  if (unit === 'โล'   && prod.kgPerBag)  totalBags = qty / prod.kgPerBag;
+  if (unit === 'หิ้ว' && prod.bagPerHiw)  totalBags = qty * prod.bagPerHiw;
+  if (unit === 'โล'   && prod.kgPerBag)   totalBags = qty / prod.kgPerBag;
+  if (unit === 'ลัง'  && prod.bagPerLang) totalBags = qty * prod.bagPerLang;
 
   // ===== เช็คราคาพิเศษก่อน =====
   const specialPrice = specialPrices[item.name];
@@ -444,6 +447,8 @@ function calcPrice(item, qty, groupTotals) {
     pricePerUnit = pricePerBag * prod.bagPerHiw;
   } else if (unit === 'โล' && prod.kgPerBag) {
     pricePerUnit = pricePerBag / prod.kgPerBag;
+  } else if (unit === 'ลัง' && prod.bagPerLang) {
+    pricePerUnit = pricePerBag * prod.bagPerLang;
   }
 
   const total = pricePerUnit * qty;
