@@ -695,21 +695,33 @@ async function submitOrder() {
       return { name: item.name, qty: item.qty, unit, displayLabel, total };
     });
 
-    // ===== Step 4: ส่งรูป + บันทึก Sheet + สร้าง PDF =====
-    await fetch(GAS_URL, {
+    // ===== Step 4: ส่งรูป + บันทึก Sheet (no-cors เหมือนเดิม) =====
+    fetch(GAS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: 'sendImageAndSaveAndPDF',
+        action: imageUrl ? 'sendImageAndSave' : 'submitOrder',
         userId: userProfile.userId,
         customerName: customer,
         items,
-        itemsWithLabel,
-        grandTotal,
         imageUrl
       })
     });
+
+    // ===== Step 5: สร้าง PDF ผ่าน GET (รองรับ CORS) =====
+    try {
+      const pdfParams = new URLSearchParams({
+        action: 'sendPDF',
+        userId: userProfile.userId,
+        customerName: customer,
+        grandTotal: grandTotal,
+        items: encodeURIComponent(JSON.stringify(itemsWithLabel))
+      });
+      fetch(GAS_URL + '?' + pdfParams.toString());
+    } catch(pdfErr) {
+      console.log('PDF error:', pdfErr);
+    }
 
     alert('✅ ส่งรายการเรียบร้อยแล้ว!\nกรุณาตรวจสอบรูปและลิงก์ PDF ใน LINE ครับ');
     liff.closeWindow();
