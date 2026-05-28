@@ -676,21 +676,42 @@ async function submitOrder() {
 
     document.getElementById('submitBtn').textContent = '⏳ กำลังส่ง...';
 
-    // ===== Step 3: ส่งรูป + บันทึก Sheet =====
+    // ===== Step 3: เตรียม displayLabel สำหรับ PDF =====
+    const groupTotals = calcGroupTotals(allItems);
+    let grandTotal = 0;
+    const itemsWithLabel = allItems.map(item => {
+      const { pricePerUnit, total, totalBags } = calcPrice(item, item.qty, groupTotals);
+      grandTotal += total;
+      const unit = item.unit || 'ถุง';
+      const prod = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+      let displayLabel = '';
+      if (unit === 'หิ้ว' && prod?.bagPerHiw) {
+        displayLabel = `${item.name}|${item.qty}หิ้ว×${Math.round(pricePerUnit)}บ.|${total}`;
+      } else if (unit === 'ลัง' && prod?.bagPerLang) {
+        displayLabel = `${item.name}|${item.qty}ลัง(${totalBags}ถุง)×${Math.round(total/item.qty)}บ.|${total}`;
+      } else {
+        displayLabel = `${item.name}|${totalBags}ถุง×${Math.round(pricePerUnit)}บ.|${total}`;
+      }
+      return { name: item.name, qty: item.qty, unit, displayLabel, total };
+    });
+
+    // ===== Step 4: ส่งรูป + บันทึก Sheet + สร้าง PDF =====
     await fetch(GAS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: imageUrl ? 'sendImageAndSave' : 'submitOrder',
+        action: 'sendImageAndSaveAndPDF',
         userId: userProfile.userId,
         customerName: customer,
         items,
+        itemsWithLabel,
+        grandTotal,
         imageUrl
       })
     });
 
-    alert('✅ ส่งรายการเรียบร้อยแล้ว!\nกรุณาตรวจสอบรูปใน LINE ครับ');
+    alert('✅ ส่งรายการเรียบร้อยแล้ว!\nกรุณาตรวจสอบรูปและลิงก์ PDF ใน LINE ครับ');
     liff.closeWindow();
   } catch (err) {
     alert('❌ ส่งไม่ได้: ' + err.message);
