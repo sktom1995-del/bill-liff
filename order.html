@@ -75,9 +75,21 @@
     .btn-share { flex: 1; padding: 13px; background: white; color: #00B900; border: 2px solid #00B900; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; display: none; }
     .btn-pdf { flex: 1; padding: 13px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; }
     .btn-pdf:disabled { background: #aaa; }
+    .btn-print { flex: 1; padding: 13px; background: #ff6600; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; }
+    .btn-print:disabled { background: #aaa; }
 
     /* IMAGE PREVIEW */
     #imagePreview { display: none; text-align: center; }
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea {
+        position: fixed; top: 0; left: 0;
+        width: 80mm; margin: 0; padding: 0;
+        font-family: 'Sarabun', sans-serif;
+      }
+      @page { size: 80mm auto; margin: 0; }
+    }
     #imagePreview img { width: 100%; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     .btn-save-img { width: 100%; padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; margin-top: 10px; }
 
@@ -165,8 +177,12 @@
   </div>
 </div>
 
+<!-- Print Area (hidden, สำหรับปริ้นเท่านั้น) -->
+<div id="printArea" style="display:none;"></div>
+
 <!-- ปุ่มด้านล่าง -->
 <div class="bottom-bar" id="bottomBar" style="display:none">
+  <button class="btn-print" id="printBtn" onclick="printBill()">🖨️ ปริ้น</button>
   <button class="btn-submit" id="submitBtn" onclick="submitOrder()">✅ ยืนยันและส่ง LINE</button>
 </div>
 
@@ -635,6 +651,71 @@ function generateBillImage(customer, allItems) {
 }
 
 // ==================== SUBMIT ====================
+// ==================== PRINT BILL ====================
+function printBill() {
+  const customer = document.getElementById('customerSelect').value;
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  if (!customer) { alert('กรุณาเลือกลูกค้าก่อนครับ'); return; }
+  if (allItems.length === 0) { alert('กรุณาใส่จำนวนสินค้าอย่างน้อย 1 รายการ'); return; }
+
+  const now = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+  const groupTotals = calcGroupTotals(allItems);
+  let grandTotal = 0;
+
+  const rowsHtml = allItems.map(item => {
+    const { pricePerUnit, total, totalBags } = calcPrice(item, item.qty, groupTotals);
+    grandTotal += total;
+    const unit = item.unit || 'ถุง';
+    const prod = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+    let calcStr = '';
+    if (unit === 'หิ้ว' && prod?.bagPerHiw) {
+      calcStr = item.qty + 'หิ้ว × ' + Math.round(pricePerUnit) + 'บ.';
+    } else if (unit === 'ลัง' && prod?.bagPerLang) {
+      calcStr = item.qty + 'ลัง(' + totalBags + 'ถุง) × ' + Math.round(total/item.qty) + 'บ.';
+    } else {
+      calcStr = totalBags + 'ถุง × ' + Math.round(pricePerUnit) + 'บ.';
+    }
+    return `<tr>
+      <td style="padding:5px 4px; font-size:15px; border-bottom:1px solid #eee;">${item.name}</td>
+      <td style="padding:5px 4px; font-size:12px; color:#888; text-align:center; border-bottom:1px solid #eee;">${calcStr}</td>
+      <td style="padding:5px 4px; font-size:15px; font-weight:bold; text-align:right; border-bottom:1px solid #eee;">${total}</td>
+    </tr>`;
+  }).join('');
+
+  const printHtml = `
+    <div style="padding:0; width:80mm; font-family:'Sarabun',sans-serif;">
+      <div style="background:#00B900; color:white; text-align:center; padding:10px; font-size:18px; font-weight:bold;">
+        รายการสั่งสินค้า
+      </div>
+      <div style="padding:8px 8px 4px;">
+        <div style="font-size:17px; font-weight:bold; color:#333;">ลูกค้า: ${customer}</div>
+        <div style="font-size:14px; color:#888;">วันที่ ${now} ${timeStr}</div>
+      </div>
+      <div style="border-top:1px solid #ddd; margin:4px 8px;"></div>
+      <table style="width:100%; border-collapse:collapse; padding:0 8px;">
+        <colgroup>
+          <col style="width:42%">
+          <col style="width:33%">
+          <col style="width:25%">
+        </colgroup>
+        ${rowsHtml}
+      </table>
+      <div style="border-top:2px solid #00B900; margin:8px 8px 0; padding:8px 0; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:17px; font-weight:bold;">ยอดรวมทั้งสิ้น</span>
+        <span style="font-size:20px; font-weight:bold; color:#00B900;">${grandTotal} บาท</span>
+      </div>
+    </div>`;
+
+  // ใส่ใน printArea แล้วสั่งปริ้น
+  const printArea = document.getElementById('printArea');
+  printArea.innerHTML = printHtml;
+  printArea.style.display = 'block';
+  window.print();
+  printArea.style.display = 'none';
+}
+
 async function submitOrder() {
   const customer = document.getElementById('customerSelect').value;
   const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
@@ -676,16 +757,37 @@ async function submitOrder() {
 
     document.getElementById('submitBtn').textContent = '⏳ กำลังส่ง...';
 
-    // ===== Step 3: ส่งรูป + บันทึก Sheet + สร้าง PDF (server จัดการทั้งหมด) =====
-    fetch(GAS_URL, {
+    // ===== Step 3: เตรียม displayLabel สำหรับ PDF =====
+    const groupTotals = calcGroupTotals(allItems);
+    let grandTotal = 0;
+    const itemsWithLabel = allItems.map(item => {
+      const { pricePerUnit, total, totalBags } = calcPrice(item, item.qty, groupTotals);
+      grandTotal += total;
+      const unit = item.unit || 'ถุง';
+      const prod = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+      let displayLabel = '';
+      if (unit === 'หิ้ว' && prod?.bagPerHiw) {
+        displayLabel = `${item.name}|${item.qty}หิ้ว×${Math.round(pricePerUnit)}บ.|${total}`;
+      } else if (unit === 'ลัง' && prod?.bagPerLang) {
+        displayLabel = `${item.name}|${item.qty}ลัง(${totalBags}ถุง)×${Math.round(total/item.qty)}บ.|${total}`;
+      } else {
+        displayLabel = `${item.name}|${totalBags}ถุง×${Math.round(pricePerUnit)}บ.|${total}`;
+      }
+      return { name: item.name, qty: item.qty, unit, displayLabel, total };
+    });
+
+    // ===== Step 4: ส่งรูป + บันทึก Sheet + สร้าง PDF =====
+    await fetch(GAS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: 'sendImageAndSave',
+        action: 'sendImageAndSaveAndPDF',
         userId: userProfile.userId,
         customerName: customer,
         items,
+        itemsWithLabel,
+        grandTotal,
         imageUrl
       })
     });
