@@ -141,6 +141,13 @@
       <div class="total-amount" id="totalAmount">0 บาท</div>
     </div>
   </div>
+
+  <!-- ปุ่ม PDF (โผล่หลังส่งแล้ว) -->
+  <div id="pdfCard" style="display:none; padding: 0 0 12px;">
+    <button class="btn-pdf" id="pdfBtn" onclick="generatePDF()" style="width:100%; padding:14px; font-size:16px;">
+      🖨️ สร้าง PDF สำหรับปริ้น
+    </button>
+  </div>
 </div>
 
 
@@ -161,7 +168,6 @@
 <!-- ปุ่มด้านล่าง -->
 <div class="bottom-bar" id="bottomBar" style="display:none">
   <button class="btn-submit" id="submitBtn" onclick="submitOrder()">✅ ยืนยันและส่ง LINE</button>
-  <button class="btn-pdf" id="pdfBtn" onclick="generatePDF()" style="display:none">🖨️ PDF</button>
 </div>
 
 <!-- Modal เพิ่มสินค้า -->
@@ -565,7 +571,7 @@ function generateBillImage(customer, allItems) {
 
   const W = 576;
   const ROW_H = 64;
-  const H = 220 + rows.length * ROW_H + 100;
+  const H = 280 + rows.length * ROW_H + 100;
   const canvas = document.createElement('canvas');
   const scale = 2;
   canvas.width  = W * scale;
@@ -576,23 +582,23 @@ function generateBillImage(customer, allItems) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#00B900';
-  ctx.fillRect(0, 0, W, 80);
+  ctx.fillRect(0, 0, W, 100);
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 28px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('🧾 รายการสั่งสินค้า', W/2, 32);
+  ctx.fillText('🧾 รายการสั่งสินค้า', W/2, 65);
   ctx.fillStyle = '#333333';
   ctx.font = 'bold 26px sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillText('ลูกค้า: ' + customer, 16, 74);
+  ctx.fillText('ลูกค้า: ' + customer, 16, 135);
   ctx.fillStyle = '#888888';
   ctx.font = '22px sans-serif';
-  ctx.fillText('วันที่ ' + now, 16, 92);
+  ctx.fillText('วันที่ ' + now, 16, 165);
   ctx.strokeStyle = '#e0e0e0';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(16, 104); ctx.lineTo(W-16, 104); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16, 182); ctx.lineTo(W-16, 182); ctx.stroke();
 
-  let y = 118;
+  let y = 210;
   rows.forEach(row => {
     ctx.fillStyle = '#333333';
     ctx.font = '24px sans-serif';
@@ -693,7 +699,9 @@ async function submitOrder() {
   document.getElementById('submitBtn').disabled = false;
   document.getElementById('submitBtn').textContent = '✅ ยืนยันและส่ง LINE';
   // แสดงปุ่ม PDF หลังส่งสำเร็จ
-  document.getElementById('pdfBtn').style.display = 'block';
+  const pdfCard = document.getElementById('pdfCard');
+  if (pdfCard) pdfCard.style.display = 'block';
+  window.scrollTo(0, document.body.scrollHeight);
 }
 
 // ==================== SAVE AS IMAGE (Canvas) ====================
@@ -721,7 +729,7 @@ function saveAsImage() {
     // สร้าง Canvas
     const W = 576;
     const ROW_H = 64;
-    const H = 220 + rows.length * ROW_H + 100;
+    const H = 280 + rows.length * ROW_H + 100;
     const canvas = document.createElement('canvas');
     const scale = 2;
     canvas.width  = W * scale;
@@ -735,20 +743,20 @@ function saveAsImage() {
 
     // Header สีเขียว
     ctx.fillStyle = '#00B900';
-    ctx.fillRect(0, 0, W, 80);
+    ctx.fillRect(0, 0, W, 100);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 28px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('🧾 รายการสั่งสินค้า', W/2, 32);
+    ctx.fillText('🧾 รายการสั่งสินค้า', W/2, 65);
 
     // ชื่อลูกค้า + วันที่
     ctx.fillStyle = '#333333';
     ctx.font = 'bold 26px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('ลูกค้า: ' + customer, 16, 74);
+    ctx.fillText('ลูกค้า: ' + customer, 16, 135);
     ctx.fillStyle = '#888888';
     ctx.font = '22px sans-serif';
-    ctx.fillText('วันที่ ' + now, 16, 92);
+    ctx.fillText('วันที่ ' + now, 16, 165);
 
     // เส้นคั่น
     ctx.strokeStyle = '#e0e0e0';
