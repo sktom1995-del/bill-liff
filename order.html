@@ -374,25 +374,21 @@ function renderRegular() {
 
 // ==================== QTY CONTROL ====================
 function changeQty(i, delta) {
-  const allItems = [...regularItems, ...extraItems];
-  const item     = allItems[i];
-  const newQty   = Math.max(0, (item.qty || 0) + delta);
+  const item   = i < regularItems.length ? regularItems[i] : extraItems[i - regularItems.length];
+  const newQty = Math.max(0, (item.qty || 0) + delta);
   if (newQty > 0 && !item.addedAt) item.addedAt = Date.now();
   if (newQty === 0) item.addedAt = null;
-  if (i < regularItems.length) regularItems[i].qty = newQty;
-  else extraItems[i - regularItems.length].qty = newQty;
+  item.qty = newQty;
   renderRegular();
   updateSummary();
 }
 
 function setQty(i, val) {
-  const qty      = Math.max(0, parseFloat(val) || 0);
-  const allItems = [...regularItems, ...extraItems];
-  const item     = allItems[i];
+  const qty  = Math.max(0, parseFloat(val) || 0);
+  const item = i < regularItems.length ? regularItems[i] : extraItems[i - regularItems.length];
   if (qty > 0 && !item.addedAt) item.addedAt = Date.now();
   if (qty === 0) item.addedAt = null;
-  if (i < regularItems.length) regularItems[i].qty = qty;
-  else extraItems[i - regularItems.length].qty = qty;
+  item.qty = qty;
   updateSummary();
 }
 
