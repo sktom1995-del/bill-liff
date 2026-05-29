@@ -722,32 +722,24 @@ ${printHtml}
 <button class="pbtn" onclick="window.print()">🖨️ กดปริ้นที่นี่</button>
 </body></html>`;
 
-  // อัพโหลด HTML ขึ้น Drive แล้วเปิดลิงก์ (data: URI ถูกบล็อกโดย LIFF)
-  try {
-    const printBtn = document.getElementById('printBtn');
-    printBtn.disabled = true;
-    printBtn.textContent = '⏳ กำลังเตรียม...';
+  // ส่งข้อมูลเป็น JSON ไปใน URL แล้วให้ GAS render หน้าปริ้น
+  const billData = {
+    customer, now, timeStr, grandTotal,
+    rows: allItems.map(item => {
+      const { pricePerUnit, total, totalBags } = calcPrice(item, item.qty, calcGroupTotals(allItems));
+      const unit = item.unit || 'ถุง';
+      const prod = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+      let calcStr = '';
+      if (unit === 'หิ้ว' && prod?.bagPerHiw) calcStr = item.qty + 'หิ้ว×' + Math.round(pricePerUnit) + 'บ.';
+      else if (unit === 'ลัง' && prod?.bagPerLang) calcStr = item.qty + 'ลัง(' + totalBags + 'ถุง)×' + Math.round(total/item.qty) + 'บ.';
+      else calcStr = totalBags + 'ถุง×' + Math.round(pricePerUnit) + 'บ.';
+      return { name: item.name, calcStr, total };
+    })
+  };
 
-    const res = await fetch(GAS_URL + '?action=savePrintPage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'savePrintPage', html: fullHtml, customerName: customer })
-    });
-    const data = await res.json();
-
-    printBtn.disabled = false;
-    printBtn.textContent = '🖨️ ปริ้น';
-
-    if (data.ok && data.url) {
-      liff.openWindow({ url: data.url, external: true });
-    } else {
-      alert('เกิดข้อผิดพลาด กรุณาลองใหม่ครับ');
-    }
-  } catch(e) {
-    document.getElementById('printBtn').disabled = false;
-    document.getElementById('printBtn').textContent = '🖨️ ปริ้น';
-    alert('เกิดข้อผิดพลาด: ' + e);
-  }
+  const encoded = encodeURIComponent(JSON.stringify(billData));
+  const printUrl = GAS_URL + '?action=printPage&data=' + encoded;
+  liff.openWindow({ url: printUrl, external: true });
 }
 
 async function submitOrder() {
