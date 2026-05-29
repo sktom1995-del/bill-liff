@@ -802,23 +802,21 @@ async function submitOrder() {
       return { name: item.name, qty: item.qty, unit, displayLabel, total };
     });
 
-    // ===== Step 4: ส่งรูป + บันทึก Sheet + สร้าง PDF =====
-    await fetch(GAS_URL, {
+    // ===== Step 4: ส่งรูป + บันทึก Sheet + สร้าง PDF (server จัดการ) =====
+    fetch(GAS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: 'sendImageAndSaveAndPDF',
+        action: 'sendImageAndSave',
         userId: userProfile.userId,
         customerName: customer,
         items,
-        itemsWithLabel,
-        grandTotal,
         imageUrl
       })
     });
 
-    alert('✅ ส่งรายการเรียบร้อยแล้ว!\nกรุณาตรวจสอบรูปและลิงก์ PDF ใน LINE ครับ');
+    alert('✅ ส่งรายการเรียบร้อยแล้ว!\nรอรับลิงก์ PDF ใน LINE สักครู่ครับ');
     liff.closeWindow();
   } catch (err) {
     alert('❌ ส่งไม่ได้: ' + err.message);
