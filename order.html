@@ -708,33 +708,46 @@ function printBill() {
       </div>
     </div>`;
 
-  // เปิดหน้าใหม่แล้วปริ้น (window.print() ไม่ทำงานใน LIFF WebView)
-  const fullHtml = `<!DOCTYPE html>
-<html><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width">
+  // เปิดหน้าปริ้นใน external browser ด้วย liff.openWindow
+  const fullHtml = `<!DOCTYPE html><html><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>บิลสินค้า</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Sarabun',sans-serif; width:80mm; }
-  @media print { @page { size:80mm auto; margin:0; } }
-  .print-btn { 
-    display:block; width:100%; padding:12px; margin:12px 0;
-    background:#1a73e8; color:white; border:none; border-radius:8px;
-    font-size:16px; font-weight:bold; cursor:pointer;
-    font-family:'Sarabun',sans-serif;
-  }
-  @media print { .print-btn { display:none; } }
-</style>
-</head><body>
-  <button class="print-btn" onclick="window.print()">🖨️ กดปริ้นที่นี่</button>
-  ${printHtml}
-  <button class="print-btn" onclick="window.print()">🖨️ กดปริ้นที่นี่</button>
+body{font-family:sans-serif;width:80mm;margin:0;padding:8px;}
+.pbtn{display:block;width:100%;padding:14px;margin:10px 0;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:18px;font-weight:bold;cursor:pointer;}
+@media print{.pbtn{display:none;}@page{size:80mm auto;margin:0;}}
+</style></head><body>
+<button class="pbtn" onclick="window.print()">🖨️ กดปริ้นที่นี่</button>
+${printHtml}
+<button class="pbtn" onclick="window.print()">🖨️ กดปริ้นที่นี่</button>
 </body></html>`;
 
-  const blob = new Blob([fullHtml], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  window.open(url, '_blank');
+  // อัพโหลด HTML ขึ้น Drive แล้วเปิดลิงก์ (data: URI ถูกบล็อกโดย LIFF)
+  try {
+    const printBtn = document.getElementById('printBtn');
+    printBtn.disabled = true;
+    printBtn.textContent = '⏳ กำลังเตรียม...';
+
+    const res = await fetch(GAS_URL + '?action=savePrintPage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'savePrintPage', html: fullHtml, customerName: customer })
+    });
+    const data = await res.json();
+
+    printBtn.disabled = false;
+    printBtn.textContent = '🖨️ ปริ้น';
+
+    if (data.ok && data.url) {
+      liff.openWindow({ url: data.url, external: true });
+    } else {
+      alert('เกิดข้อผิดพลาด กรุณาลองใหม่ครับ');
+    }
+  } catch(e) {
+    document.getElementById('printBtn').disabled = false;
+    document.getElementById('printBtn').textContent = '🖨️ ปริ้น';
+    alert('เกิดข้อผิดพลาด: ' + e);
+  }
 }
 
 async function submitOrder() {
