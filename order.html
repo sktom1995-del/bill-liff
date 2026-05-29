@@ -808,7 +808,7 @@ async function submitOrder() {
         action: 'sendImageAndSave',
         userId: userProfile.userId,
         customerName: customer,
-        items,
+        items, itemsWithLabel, grandTotal,
         imageUrl
       })
     });

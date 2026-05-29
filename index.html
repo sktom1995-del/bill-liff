@@ -84,7 +84,7 @@
 <div class="header">
   <div style="width:52px"></div>
   <div class="header-center">
-    <h1>🧾 ร้านมนต์ชัย</h1>
+    <h1>🧾 ร้านลูกชิ้นมนต์ชัย</h1>
     <p>เลือกสินค้าแล้วกดยืนยัน</p>
   </div>
   <div class="header-right">
@@ -130,7 +130,7 @@
 <script>
 const LIFF_ID   = '2010175558-iO9g05Xg';
 const GAS_URL   = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
-const SHOP_NAME = 'ร้านมนต์ชัย';
+const SHOP_NAME = 'ร้านลูกชิ้นมนต์ชัย';
 
 let allProducts   = [];
 let selectedItems = {};
@@ -346,7 +346,7 @@ function generateBillImage() {
   });
 
   const W = 360, ROW_H = 36;
-  const H = 150 + rows.length * ROW_H + 60;
+  const H = 160 + rows.length * ROW_H + 60;
   const canvas = document.createElement('canvas');
   canvas.width = W * 2; canvas.height = H * 2;
   const ctx = canvas.getContext('2d');
@@ -355,13 +355,15 @@ function generateBillImage() {
   ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#00B900'; ctx.fillRect(0, 0, W, 56);
   ctx.fillStyle = '#ffffff'; ctx.font = 'bold 17px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('🧾 ' + SHOP_NAME, W/2, 28);
-  ctx.font = '12px sans-serif';
-  ctx.fillText('วันที่ ' + now, W/2, 46);
+  ctx.fillText('🧾 ' + SHOP_NAME, W/2, 22);
+  ctx.font = '11px sans-serif';
+  ctx.fillText('📞 077210037  |  LINE: 077210037', W/2, 38);
+  ctx.font = '11px sans-serif';
+  ctx.fillText('วันที่ ' + now, W/2, 52);
   ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(16, 68); ctx.lineTo(W-16, 68); ctx.stroke();
 
-  let y = 88;
+  let y = 84;
   rows.forEach(function(row) {
     ctx.fillStyle = '#333'; ctx.font = '13px sans-serif'; ctx.textAlign = 'left';
     var name = row.name;
@@ -400,10 +402,29 @@ async function submitOrder() {
   btn.disabled = true; btn.textContent = '⏳ กำลังสร้างรูป...';
 
   try {
+    // คำนวณราคาที่ถูกต้อง (รวมราคาพิเศษ) แล้วส่งมาพร้อมกัน
+    const groupTotals = calcGroupTotals();
+    let grandTotalCalc = 0;
     const items = keys.map(function(idx) {
       const p   = allProducts[idx];
       const sel = selectedItems[idx];
       return { name: p.name.split('หรือ')[0].trim(), qty: sel.qty, unit: sel.unit };
+    });
+    const itemsWithLabel = keys.map(function(idx) {
+      const p   = allProducts[idx];
+      const sel = selectedItems[idx];
+      const { totalBags, pricePerUnit, itemTotal } = calcPrice(p, sel.qty, sel.unit, groupTotals);
+      grandTotalCalc += itemTotal;
+      const baseName = p.name.split('หรือ')[0].trim();
+      let displayLabel = '';
+      if (sel.unit === 'หิ้ว' && p.bagPerHiw) {
+        displayLabel = baseName + '|' + sel.qty + 'หิ้ว*' + (itemTotal/sel.qty) + '|' + itemTotal;
+      } else if (sel.unit === 'ลัง' && p.bagPerLang) {
+        displayLabel = baseName + '|' + sel.qty + 'ลัง(' + totalBags + 'ถุง)*' + (itemTotal/sel.qty) + '|' + itemTotal;
+      } else {
+        displayLabel = baseName + '|' + totalBags + 'ถุง*' + pricePerUnit + '|' + itemTotal;
+      }
+      return { name: baseName, matchedName: baseName, displayLabel, qty: totalBags, unit: 'ถุง', total: itemTotal, found: true };
     });
 
     let imageUrl = null;
@@ -428,11 +449,11 @@ async function submitOrder() {
         action: imageUrl ? 'sendImageAndSave' : 'submitOrder',
         userId: userProfile.userId,
         customerName: SHOP_NAME,
-        items, imageUrl
+        items, itemsWithLabel, grandTotal: grandTotalCalc, imageUrl
       })
     });
 
-    alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nรอรับรูปบิลและลิงก์ PDF ใน LINE สักครู่ครับ');
+    alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nกรุณาตรวจสอบรูปใน LINE');
     liff.closeWindow();
   } catch(err) {
     alert('❌ ส่งไม่ได้: ' + err.message);
