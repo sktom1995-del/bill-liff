@@ -375,7 +375,10 @@ function renderRegular() {
 // ==================== QTY CONTROL ====================
 function changeQty(i, delta) {
   const allItems = [...regularItems, ...extraItems];
-  const newQty = Math.max(0, (allItems[i].qty || 0) + delta);
+  const item     = allItems[i];
+  const newQty   = Math.max(0, (item.qty || 0) + delta);
+  if (newQty > 0 && !item.addedAt) item.addedAt = Date.now();
+  if (newQty === 0) item.addedAt = null;
   if (i < regularItems.length) regularItems[i].qty = newQty;
   else extraItems[i - regularItems.length].qty = newQty;
   renderRegular();
@@ -383,7 +386,11 @@ function changeQty(i, delta) {
 }
 
 function setQty(i, val) {
-  const qty = Math.max(0, parseFloat(val) || 0);
+  const qty      = Math.max(0, parseFloat(val) || 0);
+  const allItems = [...regularItems, ...extraItems];
+  const item     = allItems[i];
+  if (qty > 0 && !item.addedAt) item.addedAt = Date.now();
+  if (qty === 0) item.addedAt = null;
   if (i < regularItems.length) regularItems[i].qty = qty;
   else extraItems[i - regularItems.length].qty = qty;
   updateSummary();
@@ -478,7 +485,10 @@ function calcPrice(item, qty, groupTotals) {
 
 // ==================== UPDATE SUMMARY ====================
 function updateSummary() {
-  const allItems    = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  // เรียงตามลำดับที่ใส่จำนวน (addedAt)
+  const allItems = [...regularItems, ...extraItems]
+    .filter(i => i.qty > 0)
+    .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
   const summaryCard = document.getElementById('summaryCard');
   const summaryList = document.getElementById('summaryList');
 
@@ -651,7 +661,7 @@ function generateBillImage(customer, allItems) {
 // ==================== PRINT BILL ====================
 function printBill() {
   const customer = document.getElementById('customerSelect').value;
-  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
   if (!customer) { alert('กรุณาเลือกลูกค้าก่อนครับ'); return; }
   if (allItems.length === 0) { alert('กรุณาใส่จำนวนสินค้าอย่างน้อย 1 รายการ'); return; }
 
@@ -741,7 +751,7 @@ ${printHtml}
 
 async function submitOrder() {
   const customer = document.getElementById('customerSelect').value;
-  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
 
   if (!customer) { alert('กรุณาเลือกลูกค้าก่อนครับ'); return; }
   if (allItems.length === 0) { alert('กรุณาใส่จำนวนสินค้าอย่างน้อย 1 รายการ'); return; }
@@ -830,7 +840,7 @@ async function submitOrder() {
 // ==================== SAVE AS IMAGE (Canvas) ====================
 function saveAsImage() {
   const customer = document.getElementById('customerSelect').value;
-  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
   if (allItems.length === 0) { alert('ยังไม่มีรายการที่เลือก'); return; }
 
   const shareBtn = document.getElementById('shareBtn');
@@ -973,7 +983,7 @@ function saveAsImage() {
 // ==================== GENERATE PDF ====================
 async function generatePDF() {
   const customer = document.getElementById('customerSelect').value;
-  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+  const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0).sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
   if (!customer || allItems.length === 0) return;
 
   const pdfBtn = document.getElementById('pdfBtn');
@@ -1135,7 +1145,9 @@ async function sendImageToLINE() {
     Logger && Logger.log('ImgBB URL: ' + imageUrl);
 
     // ===== Step 2: ส่งรูป + บันทึก Sheet พร้อมกัน =====
-    const allItems = [...regularItems, ...extraItems].filter(i => i.qty > 0);
+    const allItems = [...regularItems, ...extraItems]
+      .filter(i => i.qty > 0)
+      .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
     const items    = allItems.map(i => ({ name: i.name, qty: i.qty, unit: i.unit }));
 
     await fetch(GAS_URL, {
