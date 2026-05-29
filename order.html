@@ -620,20 +620,20 @@ function generateBillImage(customer, allItems) {
   let y = 210;
   rows.forEach(row => {
     ctx.fillStyle = '#333333';
-    ctx.font = '24px sans-serif';
+    ctx.font = '20px sans-serif';
     ctx.textAlign = 'left';
     let name = row.name;
-    if (ctx.measureText(name).width > 160) {
-      while (ctx.measureText(name + '...').width > 160) name = name.slice(0, -1);
+    if (ctx.measureText(name).width > 230) {
+      while (ctx.measureText(name + '...').width > 230) name = name.slice(0, -1);
       name += '...';
     }
     ctx.fillText(name, 16, y);
     ctx.fillStyle = '#888888';
-    ctx.font = '20px sans-serif';
+    ctx.font = '17px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(row.calc, W/2, y);
     ctx.fillStyle = '#00B900';
-    ctx.font = 'bold 24px sans-serif';
+    ctx.font = 'bold 20px sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(row.total + ' บ.', W-16, y);
     y += ROW_H;
@@ -900,21 +900,21 @@ function saveAsImage() {
     rows.forEach(row => {
       y += ROW_H * 0.3;
       ctx.fillStyle = '#333333';
-      ctx.font = '24px sans-serif';
+      ctx.font = '20px sans-serif';
       ctx.textAlign = 'left';
       // ตัดชื่อถ้ายาวเกิน
       let name = row.name;
-      if (ctx.measureText(name).width > 160) {
-        while (ctx.measureText(name + '...').width > 160) name = name.slice(0, -1);
+      if (ctx.measureText(name).width > 230) {
+        while (ctx.measureText(name + '...').width > 230) name = name.slice(0, -1);
         name += '...';
       }
       ctx.fillText(name, 16, y);
       ctx.fillStyle = '#888888';
-      ctx.font = '20px sans-serif';
+      ctx.font = '17px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(row.calc, W/2, y);
       ctx.fillStyle = '#00B900';
-      ctx.font = 'bold 24px sans-serif';
+      ctx.font = 'bold 20px sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText(row.total + ' บ.', W - 16, y);
       y += ROW_H * 0.7;
