@@ -246,8 +246,13 @@ function renderProducts() {
 function changeQty(idx, delta) {
   const sel = selectedItems[idx] || { qty: 0, unit: 'ถุง' };
   sel.qty   = Math.max(0, (sel.qty || 0) + delta);
-  if (sel.qty > 0) selectedItems[idx] = sel;
-  else delete selectedItems[idx];
+  if (sel.qty > 0) {
+    if (!sel.addedAt) sel.addedAt = Date.now();
+    selectedItems[idx] = sel;
+  } else {
+    sel.addedAt = null;
+    delete selectedItems[idx];
+  }
   renderProducts();
   updateSummary();
 }
@@ -255,8 +260,13 @@ function setQty(idx, val) {
   const qty = Math.max(0, parseInt(val) || 0);
   const sel = selectedItems[idx] || { qty: 0, unit: 'ถุง' };
   sel.qty   = qty;
-  if (qty > 0) selectedItems[idx] = sel;
-  else delete selectedItems[idx];
+  if (qty > 0) {
+    if (!sel.addedAt) sel.addedAt = Date.now();
+    selectedItems[idx] = sel;
+  } else {
+    sel.addedAt = null;
+    delete selectedItems[idx];
+  }
   updateSummary();
 }
 function setUnit(idx, unit) {
@@ -314,6 +324,11 @@ function updateSummary() {
   let grandTotal    = 0;
   const groupTotals = calcGroupTotals();
 
+  // เรียงตามลำดับที่เลือก (addedAt)
+  keys.sort(function(a, b) {
+    return (selectedItems[a].addedAt || 0) - (selectedItems[b].addedAt || 0);
+  });
+
   keys.forEach(function(idx) {
     const p   = allProducts[idx];
     const sel = selectedItems[idx];
@@ -337,6 +352,10 @@ function generateBillImage() {
   const now  = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
   let grandTotal    = 0;
   const groupTotals = calcGroupTotals();
+  // เรียงตาม addedAt
+  keys.sort(function(a, b) {
+    return (selectedItems[a].addedAt || 0) - (selectedItems[b].addedAt || 0);
+  });
   const rows = keys.map(function(idx) {
     const p   = allProducts[idx];
     const sel = selectedItems[idx];
@@ -405,6 +424,10 @@ async function submitOrder() {
     // คำนวณราคาที่ถูกต้อง (รวมราคาพิเศษ) แล้วส่งมาพร้อมกัน
     const groupTotals = calcGroupTotals();
     let grandTotalCalc = 0;
+    // เรียงตาม addedAt
+    keys.sort(function(a, b) {
+      return (selectedItems[a].addedAt || 0) - (selectedItems[b].addedAt || 0);
+    });
     const items = keys.map(function(idx) {
       const p   = allProducts[idx];
       const sel = selectedItems[idx];
@@ -449,8 +472,7 @@ async function submitOrder() {
         action: imageUrl ? 'sendImageAndSave' : 'submitOrder',
         userId: userProfile.userId,
         customerName: SHOP_NAME,
-        items, itemsWithLabel, grandTotal: grandTotalCalc, imageUrl,
-        isIndexPage: true
+        items, itemsWithLabel, grandTotal: grandTotalCalc, imageUrl
       })
     });
 
