@@ -246,13 +246,8 @@ function renderProducts() {
 function changeQty(idx, delta) {
   const sel = selectedItems[idx] || { qty: 0, unit: 'ถุง' };
   sel.qty   = Math.max(0, (sel.qty || 0) + delta);
-  if (sel.qty > 0) {
-    if (!sel.addedAt) sel.addedAt = Date.now();
-    selectedItems[idx] = sel;
-  } else {
-    sel.addedAt = null;
-    delete selectedItems[idx];
-  }
+  if (sel.qty > 0) selectedItems[idx] = sel;
+  else delete selectedItems[idx];
   renderProducts();
   updateSummary();
 }
@@ -260,13 +255,8 @@ function setQty(idx, val) {
   const qty = Math.max(0, parseInt(val) || 0);
   const sel = selectedItems[idx] || { qty: 0, unit: 'ถุง' };
   sel.qty   = qty;
-  if (qty > 0) {
-    if (!sel.addedAt) sel.addedAt = Date.now();
-    selectedItems[idx] = sel;
-  } else {
-    sel.addedAt = null;
-    delete selectedItems[idx];
-  }
+  if (qty > 0) selectedItems[idx] = sel;
+  else delete selectedItems[idx];
   updateSummary();
 }
 function setUnit(idx, unit) {
@@ -324,11 +314,6 @@ function updateSummary() {
   let grandTotal    = 0;
   const groupTotals = calcGroupTotals();
 
-  // เรียงตามลำดับที่เลือก (addedAt)
-  keys.sort(function(a, b) {
-    return (selectedItems[a].addedAt || 0) - (selectedItems[b].addedAt || 0);
-  });
-
   keys.forEach(function(idx) {
     const p   = allProducts[idx];
     const sel = selectedItems[idx];
@@ -352,10 +337,6 @@ function generateBillImage() {
   const now  = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
   let grandTotal    = 0;
   const groupTotals = calcGroupTotals();
-  // เรียงตาม addedAt
-  keys.sort(function(a, b) {
-    return (selectedItems[a].addedAt || 0) - (selectedItems[b].addedAt || 0);
-  });
   const rows = keys.map(function(idx) {
     const p   = allProducts[idx];
     const sel = selectedItems[idx];
@@ -365,7 +346,7 @@ function generateBillImage() {
   });
 
   const W = 360, ROW_H = 36;
-  const H = 160 + rows.length * ROW_H + 60;
+  const H = 140 + rows.length * ROW_H + 60;
   const canvas = document.createElement('canvas');
   canvas.width = W * 2; canvas.height = H * 2;
   const ctx = canvas.getContext('2d');
@@ -377,12 +358,13 @@ function generateBillImage() {
   ctx.fillText('🧾 ' + SHOP_NAME, W/2, 22);
   ctx.font = '11px sans-serif';
   ctx.fillText('📞 077210037  |  LINE: 077210037', W/2, 38);
-  ctx.font = '11px sans-serif';
+  ctx.font = '11px sans-serif'; ctx.fillStyle = '#888888';
   ctx.fillText('วันที่ ' + now, W/2, 52);
+  ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(16, 68); ctx.lineTo(W-16, 68); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(16, 62); ctx.lineTo(W-16, 62); ctx.stroke();
 
-  let y = 84;
+  let y = 78;
   rows.forEach(function(row) {
     ctx.fillStyle = '#333'; ctx.font = '13px sans-serif'; ctx.textAlign = 'left';
     var name = row.name;
@@ -424,10 +406,6 @@ async function submitOrder() {
     // คำนวณราคาที่ถูกต้อง (รวมราคาพิเศษ) แล้วส่งมาพร้อมกัน
     const groupTotals = calcGroupTotals();
     let grandTotalCalc = 0;
-    // เรียงตาม addedAt
-    keys.sort(function(a, b) {
-      return (selectedItems[a].addedAt || 0) - (selectedItems[b].addedAt || 0);
-    });
     const items = keys.map(function(idx) {
       const p   = allProducts[idx];
       const sel = selectedItems[idx];
