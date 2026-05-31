@@ -797,6 +797,8 @@ async function submitOrder() {
       let displayLabel = '';
       if (unit === 'หิ้ว' && prod?.bagPerHiw) {
         displayLabel = `${item.name}|${item.qty}หิ้ว×${Math.round(pricePerUnit)}บ.|${total}`;
+      } else if (unit === 'โล' && prod?.kgPerBag) {
+        displayLabel = `${item.name}|${item.qty}โล×${Math.round(pricePerUnit)}บ.|${total}`;
       } else if (unit === 'ลัง' && prod?.bagPerLang) {
         displayLabel = `${item.name}|${item.qty}ลัง(${totalBags}ถุง)×${Math.round(total/item.qty)}บ.|${total}`;
       } else {
@@ -997,6 +999,8 @@ async function generatePDF() {
     const unit = item.unit || 'ถุง';
     if (unit === 'หิ้ว' && prod?.bagPerHiw) {
       displayLabel = `${item.name}|${item.qty}หิ้ว×${pricePerUnit}บ.|${total}`;
+    } else if (unit === 'โล' && prod?.kgPerBag) {
+      displayLabel = `${item.name}|${item.qty}โล×${pricePerUnit}บ.|${total}`;
     } else if (unit === 'ลัง' && prod?.bagPerLang) {
       displayLabel = `${item.name}|${item.qty}ลัง(${totalBags}ถุง)×${pricePerUnit/item.qty}บ.|${total}`;
     } else {

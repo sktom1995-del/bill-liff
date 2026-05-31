@@ -433,6 +433,8 @@ async function submitOrder() {
       let displayLabel = '';
       if (sel.unit === 'หิ้ว' && p.bagPerHiw) {
         displayLabel = baseName + '|' + sel.qty + 'หิ้ว*' + (itemTotal/sel.qty) + '|' + itemTotal;
+      } else if (sel.unit === 'โล' && p.kgPerBag) {
+        displayLabel = baseName + '|' + sel.qty + 'โล*' + pricePerUnit + '|' + itemTotal;
       } else if (sel.unit === 'ลัง' && p.bagPerLang) {
         displayLabel = baseName + '|' + sel.qty + 'ลัง(' + totalBags + 'ถุง)*' + (itemTotal/sel.qty) + '|' + itemTotal;
       } else {
