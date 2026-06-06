@@ -220,7 +220,8 @@ function renderProducts() {
     const sel  = selectedItems[idx];
     const qty  = sel ? sel.qty : 0;
     const unit = sel ? sel.unit : 'ถุง';
-    const units    = ['ถุง'];
+    const baseUnit = p.customUnit ? p.customUnit : 'ถุง';
+    const units    = [baseUnit];
     if (p.bagPerHiw) units.push('หิ้ว');
     if (p.kgPerBag)  units.push('โล');
     const unitOpts = units.map(u => '<option value="' + u + '"' + (u === unit ? ' selected' : '') + '>' + u + '</option>').join('');
@@ -270,7 +271,11 @@ function setQty(idx, val) {
   updateSummary();
 }
 function setUnit(idx, unit) {
-  if (!selectedItems[idx]) selectedItems[idx] = { qty: 0, unit };
+  if (!selectedItems[idx]) {
+    const defP = allProducts[idx];
+    const defU = (defP && defP.customUnit) ? defP.customUnit : 'ถุง';
+    selectedItems[idx] = { qty: 0, unit: defU };
+  }
   selectedItems[idx].unit = unit;
   updateSummary();
 }
@@ -284,8 +289,9 @@ function calcGroupTotals() {
     if (!p || !sel.qty) return;
     if (p.groupKey) {
       let totalBags = sel.qty;
-      if (sel.unit === 'หิ้ว' && p.bagPerHiw) totalBags = sel.qty * p.bagPerHiw;
-      if (sel.unit === 'โล'   && p.kgPerBag)  totalBags = sel.qty / p.kgPerBag;
+      const nu2 = (p.customUnit && sel.unit === p.customUnit) ? 'ถุง' : sel.unit;
+      if (nu2 === 'หิ้ว' && p.bagPerHiw) totalBags = sel.qty * p.bagPerHiw;
+      if (nu2 === 'โล'   && p.kgPerBag)  totalBags = sel.qty / p.kgPerBag;
       groupTotals[p.groupKey] = (groupTotals[p.groupKey] || 0) + totalBags;
     }
   });
@@ -295,14 +301,15 @@ function calcGroupTotals() {
 // ==================== CALC PRICE ====================
 function calcPrice(p, qty, unit, groupTotals) {
   let totalBags = qty;
-  if (unit === 'หิ้ว' && p.bagPerHiw) totalBags = qty * p.bagPerHiw;
-  if (unit === 'โล'   && p.kgPerBag)  totalBags = qty / p.kgPerBag;
+  const nu = (p.customUnit && unit === p.customUnit) ? 'ถุง' : unit;
+  if (nu === 'หิ้ว' && p.bagPerHiw) totalBags = qty * p.bagPerHiw;
+  if (nu === 'โล'   && p.kgPerBag)  totalBags = qty / p.kgPerBag;
   const effectiveBags = (p.groupKey && groupTotals && groupTotals[p.groupKey]) ? groupTotals[p.groupKey] : totalBags;
   const isBulk        = p.minQty && p.bulkPrice && effectiveBags >= p.minQty;
   const pricePerBag   = isBulk ? p.bulkPrice : p.price;
   let pricePerUnit    = pricePerBag;
-  if (unit === 'หิ้ว' && p.bagPerHiw) pricePerUnit = pricePerBag * p.bagPerHiw;
-  else if (unit === 'โล' && p.kgPerBag) pricePerUnit = pricePerBag / p.kgPerBag;
+  if (nu === 'หิ้ว' && p.bagPerHiw) pricePerUnit = pricePerBag * p.bagPerHiw;
+  else if (nu === 'โล' && p.kgPerBag) pricePerUnit = pricePerBag / p.kgPerBag;
   return { totalBags, pricePerUnit, itemTotal: pricePerUnit * qty };
 }
 

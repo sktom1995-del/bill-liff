@@ -402,7 +402,8 @@ function getUnitOptions(name, currentUnit) {
   const prod = allProducts.find(p =>
     p.name.split('หรือ')[0].trim() === name || p.name.includes(name)
   );
-  const units = ['ถุง'];
+  const baseUnit = (prod && prod.customUnit) ? prod.customUnit : 'ถุง';
+  const units = [baseUnit];
   if (prod && prod.bagPerHiw)  units.push('หิ้ว');
   if (prod && prod.kgPerBag)   units.push('โล');
   if (prod && prod.bagPerLang) units.push('ลัง');
@@ -427,9 +428,10 @@ function calcGroupTotals(allItems) {
     if (prod && prod.groupKey) {
       let totalBags = item.qty;
       const unit = item.unit || 'ถุง';
-      if (unit === 'หิ้ว' && prod.bagPerHiw)  totalBags = item.qty * prod.bagPerHiw;
-      if (unit === 'โล'   && prod.kgPerBag)   totalBags = item.qty / prod.kgPerBag;
-      if (unit === 'ลัง'  && prod.bagPerLang) totalBags = item.qty * prod.bagPerLang;
+      const normUnit2 = (prod && prod.customUnit && unit === prod.customUnit) ? 'ถุง' : unit;
+      if (normUnit2 === 'หิ้ว' && prod.bagPerHiw)  totalBags = item.qty * prod.bagPerHiw;
+      if (normUnit2 === 'โล'   && prod.kgPerBag)   totalBags = item.qty / prod.kgPerBag;
+      if (normUnit2 === 'ลัง'  && prod.bagPerLang) totalBags = item.qty * prod.bagPerLang;
       groupTotals[prod.groupKey] = (groupTotals[prod.groupKey] || 0) + totalBags;
     }
   });
@@ -445,9 +447,10 @@ function calcPrice(item, qty, groupTotals) {
 
   let totalBags = qty;
   const unit = item.unit || 'ถุง';
-  if (unit === 'หิ้ว' && prod.bagPerHiw)  totalBags = qty * prod.bagPerHiw;
-  if (unit === 'โล'   && prod.kgPerBag)   totalBags = qty / prod.kgPerBag;
-  if (unit === 'ลัง'  && prod.bagPerLang) totalBags = qty * prod.bagPerLang;
+  const normUnit = (prod.customUnit && unit === prod.customUnit) ? 'ถุง' : unit;
+  if (normUnit === 'หิ้ว' && prod.bagPerHiw)  totalBags = qty * prod.bagPerHiw;
+  if (normUnit === 'โล'   && prod.kgPerBag)   totalBags = qty / prod.kgPerBag;
+  if (normUnit === 'ลัง'  && prod.bagPerLang) totalBags = qty * prod.bagPerLang;
 
   // ===== เช็คราคาพิเศษก่อน =====
   const specialPrice = specialPrices[item.name];
@@ -467,11 +470,11 @@ function calcPrice(item, qty, groupTotals) {
 
   // คำนวณราคาต่อหน่วยที่ลูกค้าเลือก
   let pricePerUnit = pricePerBag;
-  if (unit === 'หิ้ว' && prod.bagPerHiw) {
+  if (normUnit === 'หิ้ว' && prod.bagPerHiw) {
     pricePerUnit = pricePerBag * prod.bagPerHiw;
-  } else if (unit === 'โล' && prod.kgPerBag) {
+  } else if (normUnit === 'โล' && prod.kgPerBag) {
     pricePerUnit = pricePerBag / prod.kgPerBag;
-  } else if (unit === 'ลัง' && prod.bagPerLang) {
+  } else if (normUnit === 'ลัง' && prod.bagPerLang) {
     pricePerUnit = pricePerBag * prod.bagPerLang;
   }
 
@@ -568,7 +571,9 @@ function renderModal() {
 
 function addExtra(product) {
   const name = product.name.split('หรือ')[0].trim();
-  extraItems.push({ name, unit: 'ถุง', qty: 1 });
+  const defProd = allProducts.find(p => p.name.split('หรือ')[0].trim() === name);
+  const defUnit = (defProd && defProd.customUnit) ? defProd.customUnit : 'ถุง';
+  extraItems.push({ name, unit: defUnit, qty: 1 });
   closeModal();
   renderRegular();
   updateSummary();
