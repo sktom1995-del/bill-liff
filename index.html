@@ -159,7 +159,7 @@ async function init() {
 
 // ==================== LOAD PRODUCTS ====================
 async function loadProducts() {
-  const CACHE_KEY    = 'mcProducts_v2';
+  const CACHE_KEY    = 'mcProducts_v3';
   const CACHE_EXPIRE = 'mcProducts_exp_v2';
   const CACHE_MIN    = 30;
   try {
@@ -334,11 +334,9 @@ function updateSummary() {
     const name = p.name.split('หรือ')[0].trim();
     const row  = document.createElement('div');
     row.className = 'summary-row';
-    const prod2 = allProducts[idx];
-    const displayUnit = (prod2 && prod2.customUnit) ? prod2.customUnit : sel.unit;
     row.innerHTML =
       '<div class="summary-name">' + name + '</div>' +
-      '<div class="summary-calc">' + sel.qty + displayUnit + '×' + pricePerUnit + 'บ.</div>' +
+      '<div class="summary-calc">' + sel.qty + sel.unit + '×' + pricePerUnit + 'บ.</div>' +
       '<div class="summary-amt">' + itemTotal + ' บ.</div>';
     summaryList.appendChild(row);
   });
@@ -435,8 +433,6 @@ async function submitOrder() {
       let displayLabel = '';
       if (sel.unit === 'หิ้ว' && p.bagPerHiw) {
         displayLabel = baseName + '|' + sel.qty + 'หิ้ว*' + (itemTotal/sel.qty) + '|' + itemTotal;
-      } else if (sel.unit === 'โล' && p.kgPerBag) {
-        displayLabel = baseName + '|' + sel.qty + 'โล*' + pricePerUnit + '|' + itemTotal;
       } else if (sel.unit === 'ลัง' && p.bagPerLang) {
         displayLabel = baseName + '|' + sel.qty + 'ลัง(' + totalBags + 'ถุง)*' + (itemTotal/sel.qty) + '|' + itemTotal;
       } else {
