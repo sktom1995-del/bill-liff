@@ -254,7 +254,7 @@ async function loadCustomers() {
 // ==================== LOAD ALL PRODUCTS (with cache) ====================
 async function loadAllProducts() {
   const CACHE_KEY     = 'billProducts_v4';
-  const CACHE_EXPIRE  = 'billProducts_expire';
+  const CACHE_EXPIRE  = 'billProducts_expire_v4';
   const CACHE_MINUTES = 30; // cache 30 นาที
 
   // เช็ค cache ก่อน
@@ -287,9 +287,6 @@ async function loadAllProducts() {
   } catch(e) {}
 
   buildModalCats();
-  // DEBUG: แสดง customUnit ของเต้าหู้ก้อน
-  const debugProd = allProducts.find(p => p.name.includes('เต้าหู้ก้อน'));
-  alert('เต้าหู้ก้อน customUnit = ' + (debugProd ? debugProd.customUnit : 'ไม่พบ') + '\ncache key = ' + CACHE_KEY);
 }
 
 function buildModalCats() {
