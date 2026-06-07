@@ -287,6 +287,9 @@ async function loadAllProducts() {
   } catch(e) {}
 
   buildModalCats();
+  // DEBUG: แสดง customUnit ของเต้าหู้ก้อน
+  const debugProd = allProducts.find(p => p.name.includes('เต้าหู้ก้อน'));
+  alert('เต้าหู้ก้อน customUnit = ' + (debugProd ? debugProd.customUnit : 'ไม่พบ') + '\ncache key = ' + CACHE_KEY);
 }
 
 function buildModalCats() {
