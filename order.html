@@ -502,7 +502,10 @@ function updateSummary() {
     const { pricePerUnit, total } = calcPrice(item, item.qty, groupTotals);
     grandTotal += total;
 
-    const prod2 = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+    const prod2 = allProducts.find(p => {
+      const aliases = p.name.split('หรือ').map(a => a.trim());
+      return aliases.some(a => a === item.name || item.name === a);
+    }) || allProducts.find(p => p.name.includes(item.name) || item.name.includes(p.name.split('หรือ')[0].trim()));
     const displayUnit = (prod2 && prod2.customUnit) ? prod2.customUnit : item.unit;
     const row = document.createElement('div');
     row.className = 'summary-row';
