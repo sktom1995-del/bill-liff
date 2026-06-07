@@ -598,7 +598,9 @@ function generateBillImage(customer, allItems) {
   const rows = allItems.map(item => {
     const { pricePerUnit, total } = calcPrice(item, item.qty, groupTotals);
     grandTotal += total;
-    return { name: item.name, calc: item.qty + item.unit + '×' + pricePerUnit + 'บ.', total };
+    const prod = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+    const dUnit = (prod && prod.customUnit) ? prod.customUnit : item.unit;
+    return { name: item.name, calc: item.qty + dUnit + '×' + pricePerUnit + 'บ.', total };
   });
 
   const W = 576;
@@ -868,7 +870,9 @@ function saveAsImage() {
     const rows = allItems.map(item => {
       const { pricePerUnit, total } = calcPrice(item, item.qty, groupTotals);
       grandTotal += total;
-      return { name: item.name, calc: item.qty + item.unit + '×' + pricePerUnit + 'บ.', total };
+      const prod = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+      const dUnit = (prod && prod.customUnit) ? prod.customUnit : item.unit;
+      return { name: item.name, calc: item.qty + dUnit + '×' + pricePerUnit + 'บ.', total };
     });
 
     // สร้าง Canvas

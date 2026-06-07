@@ -167,8 +167,7 @@ async function loadProducts() {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached && exp && Date.now() < parseInt(exp)) {
       allProducts = JSON.parse(cached);
-      const hasCustomUnit = allProducts.some(p => p.hasOwnProperty('customUnit'));
-      if (!hasCustomUnit) { /* cache เก่า โหลดใหม่ */ throw new Error('stale cache'); }
+      if (!allProducts.some(p => p.hasOwnProperty('customUnit'))) throw new Error('stale');
       buildCats(); renderProducts();
       fetch(GAS_URL + '?action=getProducts').then(r => r.json()).then(d => {
         allProducts = d;
@@ -336,9 +335,11 @@ function updateSummary() {
     const name = p.name.split('หรือ')[0].trim();
     const row  = document.createElement('div');
     row.className = 'summary-row';
+    const p2 = allProducts[idx];
+    const du = (p2 && p2.customUnit) ? p2.customUnit : sel.unit;
     row.innerHTML =
       '<div class="summary-name">' + name + '</div>' +
-      '<div class="summary-calc">' + sel.qty + sel.unit + '×' + pricePerUnit + 'บ.</div>' +
+      '<div class="summary-calc">' + sel.qty + du + '×' + pricePerUnit + 'บ.</div>' +
       '<div class="summary-amt">' + itemTotal + ' บ.</div>';
     summaryList.appendChild(row);
   });
@@ -357,7 +358,9 @@ function generateBillImage() {
     const sel = selectedItems[idx];
     const { pricePerUnit, itemTotal } = calcPrice(p, sel.qty, sel.unit, groupTotals);
     grandTotal += itemTotal;
-    return { name: p.name.split('หรือ')[0].trim(), calc: sel.qty + sel.unit + '×' + pricePerUnit + 'บ.', total: itemTotal };
+    const prod2 = allProducts[idx];
+    const dUnit = (prod2 && prod2.customUnit) ? prod2.customUnit : sel.unit;
+    return { name: p.name.split('หรือ')[0].trim(), calc: sel.qty + dUnit + '×' + pricePerUnit + 'บ.', total: itemTotal };
   });
 
   const W = 360, ROW_H = 36;
@@ -438,8 +441,7 @@ async function submitOrder() {
       } else if (sel.unit === 'ลัง' && p.bagPerLang) {
         displayLabel = baseName + '|' + sel.qty + 'ลัง(' + totalBags + 'ถุง)*' + (itemTotal/sel.qty) + '|' + itemTotal;
       } else {
-        const dispUnit2 = (p.customUnit) ? p.customUnit : 'ถุง';
-        displayLabel = baseName + '|' + sel.qty + dispUnit2 + '*' + pricePerUnit + '|' + itemTotal;
+        displayLabel = baseName + '|' + totalBags + 'ถุง*' + pricePerUnit + '|' + itemTotal;
       }
       return { name: baseName, matchedName: baseName, displayLabel, qty: totalBags, unit: 'ถุง', total: itemTotal, found: true };
     });
