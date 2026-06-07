@@ -807,6 +807,7 @@ async function submitOrder() {
       grandTotal += total;
       const unit = item.unit || 'ถุง';
       const prod = allProducts.find(p => p.name.split('หรือ')[0].trim() === item.name || p.name.includes(item.name));
+      const displayUnit = (prod && prod.customUnit) ? prod.customUnit : 'ถุง';
       let displayLabel = '';
       if (unit === 'หิ้ว' && prod?.bagPerHiw) {
         displayLabel = `${item.name}|${item.qty}หิ้ว×${Math.round(pricePerUnit)}บ.|${total}`;
@@ -815,7 +816,7 @@ async function submitOrder() {
       } else if (unit === 'ลัง' && prod?.bagPerLang) {
         displayLabel = `${item.name}|${item.qty}ลัง(${totalBags}ถุง)×${Math.round(total/item.qty)}บ.|${total}`;
       } else {
-        displayLabel = `${item.name}|${totalBags}ถุง×${Math.round(pricePerUnit)}บ.|${total}`;
+        displayLabel = `${item.name}|${item.qty}${displayUnit}×${Math.round(pricePerUnit)}บ.|${total}`;
       }
       return { name: item.name, qty: item.qty, unit, displayLabel, total };
     });

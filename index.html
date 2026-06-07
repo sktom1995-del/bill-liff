@@ -159,14 +159,16 @@ async function init() {
 
 // ==================== LOAD PRODUCTS ====================
 async function loadProducts() {
-  const CACHE_KEY    = 'mcProducts_v4';
-  const CACHE_EXPIRE = 'mcProducts_exp_v4';
+  const CACHE_KEY    = 'mcProducts_v5';
+  const CACHE_EXPIRE = 'mcProducts_exp_v5';
   const CACHE_MIN    = 30;
   try {
     const exp    = localStorage.getItem(CACHE_EXPIRE);
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached && exp && Date.now() < parseInt(exp)) {
       allProducts = JSON.parse(cached);
+      const hasCustomUnit = allProducts.some(p => p.hasOwnProperty('customUnit'));
+      if (!hasCustomUnit) { /* cache เก่า โหลดใหม่ */ throw new Error('stale cache'); }
       buildCats(); renderProducts();
       fetch(GAS_URL + '?action=getProducts').then(r => r.json()).then(d => {
         allProducts = d;
@@ -436,7 +438,8 @@ async function submitOrder() {
       } else if (sel.unit === 'ลัง' && p.bagPerLang) {
         displayLabel = baseName + '|' + sel.qty + 'ลัง(' + totalBags + 'ถุง)*' + (itemTotal/sel.qty) + '|' + itemTotal;
       } else {
-        displayLabel = baseName + '|' + totalBags + 'ถุง*' + pricePerUnit + '|' + itemTotal;
+        const dispUnit2 = (p.customUnit) ? p.customUnit : 'ถุง';
+        displayLabel = baseName + '|' + sel.qty + dispUnit2 + '*' + pricePerUnit + '|' + itemTotal;
       }
       return { name: baseName, matchedName: baseName, displayLabel, qty: totalBags, unit: 'ถุง', total: itemTotal, found: true };
     });
