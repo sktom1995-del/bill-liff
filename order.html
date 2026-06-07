@@ -253,26 +253,35 @@ async function loadCustomers() {
 
 // ==================== LOAD ALL PRODUCTS (with cache) ====================
 async function loadAllProducts() {
-  const CACHE_KEY     = 'billProducts_v4';
-  const CACHE_EXPIRE  = 'billProducts_expire_v4';
-  const CACHE_MINUTES = 30; // cache 30 นาที
+  const CACHE_KEY     = 'billProducts_v5';
+  const CACHE_EXPIRE  = 'billProducts_expire_v5';
+  const CACHE_MINUTES = 30;
 
-  // เช็ค cache ก่อน
+  // ล้าง cache version เก่าทิ้ง
+  ['billProducts_v1','billProducts_v2','billProducts_v3','billProducts_v4',
+   'billProducts_expire','billProducts_expire_v4'].forEach(k => {
+    try { localStorage.removeItem(k); } catch(e) {}
+  });
+
+  // เช็ค cache v5
   try {
     const expire = localStorage.getItem(CACHE_EXPIRE);
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached && expire && Date.now() < parseInt(expire)) {
       allProducts = JSON.parse(cached);
-      buildModalCats();
-      // โหลดใหม่ในพื้นหลัง
-      fetch(`${GAS_URL}?action=getProducts`)
-        .then(r => r.json())
-        .then(data => {
-          allProducts = data;
-          localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-          localStorage.setItem(CACHE_EXPIRE, Date.now() + CACHE_MINUTES * 60 * 1000);
-        }).catch(() => {});
-      return;
+      // เช็คว่า cache นี้มี customUnit ไหม ถ้าไม่มีให้โหลดใหม่
+      const hasCustomUnit = allProducts.some(p => p.hasOwnProperty('customUnit'));
+      if (hasCustomUnit) {
+        buildModalCats();
+        fetch(`${GAS_URL}?action=getProducts`)
+          .then(r => r.json())
+          .then(data => {
+            allProducts = data;
+            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+            localStorage.setItem(CACHE_EXPIRE, Date.now() + CACHE_MINUTES * 60 * 1000);
+          }).catch(() => {});
+        return;
+      }
     }
   } catch(e) {}
 
@@ -280,7 +289,6 @@ async function loadAllProducts() {
   const res = await fetch(`${GAS_URL}?action=getProducts`);
   allProducts = await res.json();
 
-  // บันทึก cache
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(allProducts));
     localStorage.setItem(CACHE_EXPIRE, Date.now() + CACHE_MINUTES * 60 * 1000);
