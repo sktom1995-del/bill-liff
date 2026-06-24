@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>สั่งสินค้า (พิมพ์ข้อความ)</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', sans-serif; background: #f5f5f5; color: #333; }
+
+    .header { background: #00B900; color: white; padding: 14px 16px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,185,0,0.3); }
+    .header h1 { font-size: 18px; font-weight: 700; }
+    .header p { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+
+    #app { padding: 12px; max-width: 480px; margin: 0 auto; padding-bottom: 100px; }
+
+    .card { background: white; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .card-title { font-size: 13px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+
+    /* INPUT FORM */
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; font-weight: 600; }
+    .field input[type="text"] {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      font-size: 15px; font-family: 'Sarabun', sans-serif; background: white;
+    }
+    .field input[type="text"]:focus { outline: none; border-color: #00B900; }
+
+    textarea {
+      width: 100%; min-height: 220px; padding: 12px; border: 1.5px solid #e0e0e0;
+      border-radius: 8px; font-size: 15px; font-family: 'Sarabun', sans-serif;
+      resize: vertical; line-height: 1.6;
+    }
+    textarea:focus { outline: none; border-color: #00B900; }
+    textarea::placeholder { color: #bbb; }
+
+    .hint { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.5; }
+    .hint b { color: #666; }
+
+    .btn-calc {
+      width: 100%; padding: 13px; background: #1a73e8; color: white; border: none;
+      border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif;
+      cursor: pointer; margin-top: 4px;
+    }
+    .btn-calc:disabled { background: #aaa; }
+
+    /* RESULT */
+    #resultCard { display: none; }
+    .result-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 14px; gap: 8px; }
+    .result-row:last-child { border-bottom: none; }
+    .result-row.notfound .result-name { color: #e53935; }
+    .result-name { flex: 1; color: #333; line-height: 1.4; }
+    .result-calc { color: #888; font-size: 12px; white-space: nowrap; }
+    .result-amt { font-weight: 700; color: #00B900; white-space: nowrap; min-width: 60px; text-align: right; }
+    .total-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 4px; margin-top: 6px; border-top: 2px solid #00B900; }
+    .total-label { font-size: 16px; font-weight: 700; }
+    .total-amount { font-size: 22px; font-weight: 700; color: #00B900; }
+
+    .error-box { background: #fff3f3; border: 1px solid #ffcdd2; border-radius: 8px; padding: 12px; color: #c62828; font-size: 14px; margin-top: 4px; display: none; }
+
+    /* BOTTOM BAR */
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px; background: white; box-shadow: 0 -2px 12px rgba(0,0,0,0.1); display: flex; gap: 10px; max-width: 480px; margin: 0 auto; }
+    .btn-submit { flex: 1; padding: 13px; background: #00B900; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; }
+    .btn-submit:disabled { background: #ccc; }
+    .btn-edit { flex: 1; padding: 13px; background: white; color: #666; border: 1.5px solid #ddd; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: 'Sarabun', sans-serif; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📝 สั่งสินค้า (พิมพ์ข้อความ)</h1>
+  <p>พิมพ์รายการแล้วกดคำนวณราคา</p>
+</div>
+
+<div id="app">
+  <!-- ฟอร์มพิมพ์ -->
+  <div class="card" id="inputCard">
+    <div class="card-title">รายการสั่งสินค้า</div>
+
+    <div class="field">
+      <label>ชื่อลูกค้า / ชื่อร้าน</label>
+      <input type="text" id="customerInput" placeholder="เช่น ร้านสังกะสี">
+    </div>
+
+    <div class="field">
+      <label>รายการสินค้า (1 บรรทัดต่อ 1 รายการ)</label>
+      <textarea id="orderText" placeholder="ลูกชิ้นหมู 5
+วุ้นเส้น 2 หิ้ว
+ไส้กรอกแดง 3 ถุง
+หมูฟ้ากลาง 10 โล"></textarea>
+      <div class="hint">
+        รูปแบบ: <b>ชื่อสินค้า จำนวน หน่วย</b><br>
+        หน่วยที่รองรับ: ถุง (ไม่ใส่ก็ได้), หิ้ว, โล, ลัง
+      </div>
+    </div>
+
+    <button class="btn-calc" id="calcBtn" onclick="calculateOrder()">🧮 คำนวณราคา</button>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <!-- ผลลัพธ์ -->
+  <div class="card" id="resultCard">
+    <div class="card-title">ผลการคำนวณ</div>
+    <div id="resultCustomer" style="font-size:15px; font-weight:700; margin-bottom:8px; color:#333;"></div>
+    <div id="resultList"></div>
+    <div class="total-row">
+      <div class="total-label">ยอดรวมทั้งสิ้น</div>
+      <div class="total-amount" id="totalAmount">0 บาท</div>
+    </div>
+  </div>
+</div>
+
+<!-- ปุ่มด้านล่าง (โผล่หลังคำนวณ) -->
+<div class="bottom-bar" id="bottomBar" style="display:none;">
+  <button class="btn-edit" onclick="backToEdit()">✏️ แก้ไข</button>
+  <button class="btn-submit" id="submitBtn" onclick="submitOrder()">✅ ยืนยันและส่ง LINE</button>
+</div>
+
+<script>
+const LIFF_ID = '2010175558-CXXV0qXs'; // TODO: ใส่ LIFF ID ของหน้านี้
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
+
+let userProfile = null;
+let lastResult   = null;
+
+// ==================== INIT (ไม่ต้องโหลดสินค้าเลย เร็วมาก) ====================
+async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (liff.isLoggedIn()) {
+      try { userProfile = await liff.getProfile(); } catch(e) { userProfile = { userId: 'test-user' }; }
+    } else if (liff.isInClient()) {
+      liff.login(); return;
+    } else {
+      userProfile = { userId: 'test-user' };
+    }
+  } catch(err) {
+    userProfile = { userId: 'test-user' };
+    console.log('LIFF init error (ใช้งานนอก LINE):', err);
+  }
+}
+
+// ==================== คำนวณราคา (ส่งไป GAS) ====================
+async function calculateOrder() {
+  const customer = document.getElementById('customerInput').value.trim();
+  const text     = document.getElementById('orderText').value.trim();
+  const errorBox = document.getElementById('errorBox');
+  errorBox.style.display = 'none';
+
+  if (!customer) { showError('กรุณากรอกชื่อลูกค้าก่อนครับ'); return; }
+  if (!text)     { showError('กรุณาพิมพ์รายการสินค้าก่อนครับ'); return; }
+
+  const btn = document.getElementById('calcBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังคำนวณ...';
+
+  try {
+    const orderText = customer + '\n' + text;
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'calcTextOrder', orderText })
+    });
+    const data = await res.json();
+
+    if (!data.ok || data.error) {
+      showError(data.error || 'คำนวณไม่ได้ ลองตรวจสอบรูปแบบข้อความอีกครั้งครับ');
+      return;
+    }
+
+    lastResult = data.result;
+    renderResult(lastResult);
+
+    document.getElementById('inputCard').style.display = 'none';
+    document.getElementById('resultCard').style.display = 'block';
+    document.getElementById('bottomBar').style.display = 'flex';
+
+  } catch(err) {
+    showError('เกิดข้อผิดพลาด: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🧮 คำนวณราคา';
+}
+
+function showError(msg) {
+  const errorBox = document.getElementById('errorBox');
+  errorBox.textContent = '❌ ' + msg;
+  errorBox.style.display = 'block';
+}
+
+// ==================== แสดงผลลัพธ์ ====================
+function renderResult(result) {
+  document.getElementById('resultCustomer').textContent = 'ลูกค้า: ' + result.customerName;
+  const list = document.getElementById('resultList');
+  list.innerHTML = '';
+
+  result.items.forEach(item => {
+    const parts = item.found ? item.displayLabel.split('|') : [item.displayLabel, '', '0'];
+    const name  = parts[0] ? parts[0].trim() : item.matchedName;
+    const calc  = parts[1] ? parts[1].trim() : '';
+    const total = parts[2] ? parts[2].trim() : '0';
+
+    const row = document.createElement('div');
+    row.className = 'result-row' + (item.found ? '' : ' notfound');
+    row.innerHTML = `
+      <div class="result-name">${name}${item.found ? '' : ' ⚠️'}</div>
+      <div class="result-calc">${calc}</div>
+      <div class="result-amt">${total} บ.</div>
+    `;
+    list.appendChild(row);
+  });
+
+  document.getElementById('totalAmount').textContent = result.grandTotal + ' บาท';
+}
+
+// ==================== กลับไปแก้ไข ====================
+function backToEdit() {
+  document.getElementById('inputCard').style.display = 'block';
+  document.getElementById('resultCard').style.display = 'none';
+  document.getElementById('bottomBar').style.display = 'none';
+}
+
+// ==================== ส่งเข้า LINE ====================
+async function submitOrder() {
+  if (!lastResult) return;
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังส่ง...';
+
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'sendImageAndSave',
+        userId: userProfile.userId,
+        customerName: lastResult.customerName,
+        items: lastResult.items,
+        itemsWithLabel: lastResult.items,
+        grandTotal: lastResult.grandTotal,
+        imageUrl: null
+      })
+    });
+
+    alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nรอรับลิงก์ PDF ใน LINE สักครู่ครับ');
+    liff.closeWindow();
+  } catch(err) {
+    alert('❌ ส่งไม่ได้: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✅ ยืนยันและส่ง LINE';
+}
+
+init();
+</script>
+</body>
+</html>
