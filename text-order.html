@@ -130,15 +130,21 @@ async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
     if (liff.isLoggedIn()) {
-      try { userProfile = await liff.getProfile(); } catch(e) { userProfile = { userId: 'test-user' }; }
+      try {
+        userProfile = await liff.getProfile();
+      } catch(e) {
+        alert('⚠️ ดึงข้อมูล LINE ไม่ได้: ' + e.message + '\nรูปและ PDF จะไม่ถูกส่งเข้า LINE ครับ');
+        userProfile = { userId: 'test-user' };
+      }
     } else if (liff.isInClient()) {
       liff.login(); return;
     } else {
+      alert('⚠️ เปิดนอก LINE app — รูปและ PDF จะไม่ถูกส่งเข้า LINE ครับ\nกรุณาเปิดผ่าน LINE เท่านั้น');
       userProfile = { userId: 'test-user' };
     }
   } catch(err) {
+    alert('⚠️ LIFF เริ่มต้นไม่สำเร็จ: ' + err.message + '\nเช็ค LIFF ID / Endpoint URL ใน LINE Developers ครับ');
     userProfile = { userId: 'test-user' };
-    console.log('LIFF init error (ใช้งานนอก LINE):', err);
   }
 }
 
@@ -319,7 +325,10 @@ async function submitOrder() {
       })
     });
     const sendData = await sendRes.json();
-    alert('DEBUG response: ' + JSON.stringify(sendData));
+    if (sendData.lineError) {
+      alert('❌ LINE ส่งไม่สำเร็จ:\n' + sendData.lineError + '\n\nส่งไปที่ userId: ' + sendData.sentTo);
+      return;
+    }
 
     alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nรอรับรูปและลิงก์ PDF ใน LINE สักครู่ครับ');
     liff.closeWindow();
