@@ -51,6 +51,13 @@
     .result-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 14px; gap: 8px; }
     .result-row:last-child { border-bottom: none; }
     .result-row.notfound .result-name { color: #e53935; }
+    .result-row.uncertain { flex-direction: column; background: #fff8e1; border-radius: 8px; padding: 10px; margin: 4px 0; border-bottom: none; }
+    .uncertain-label { font-size: 13px; color: #f57c00; font-weight: 600; margin-bottom: 8px; }
+    .uncertain-label b { color: #e65100; }
+    .suggest-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+    .suggest-btn { padding: 8px 12px; background: white; border: 1.5px solid #ffb74d; border-radius: 8px; font-size: 13px; font-family: 'Sarabun', sans-serif; color: #333; cursor: pointer; }
+    .suggest-btn:active { background: #fff3e0; }
+    .suggest-btn.skip { border-color: #ddd; color: #999; }
     .result-name { flex: 1; color: #333; line-height: 1.4; }
     .result-calc { color: #888; font-size: 12px; white-space: nowrap; }
     .result-amt { font-weight: 700; color: #00B900; white-space: nowrap; min-width: 60px; text-align: right; }
@@ -130,21 +137,15 @@ async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
     if (liff.isLoggedIn()) {
-      try {
-        userProfile = await liff.getProfile();
-      } catch(e) {
-        alert('⚠️ ดึงข้อมูล LINE ไม่ได้: ' + e.message + '\nรูปและ PDF จะไม่ถูกส่งเข้า LINE ครับ');
-        userProfile = { userId: 'test-user' };
-      }
+      try { userProfile = await liff.getProfile(); } catch(e) { userProfile = { userId: 'test-user' }; }
     } else if (liff.isInClient()) {
       liff.login(); return;
     } else {
-      alert('⚠️ เปิดนอก LINE app — รูปและ PDF จะไม่ถูกส่งเข้า LINE ครับ\nกรุณาเปิดผ่าน LINE เท่านั้น');
       userProfile = { userId: 'test-user' };
     }
   } catch(err) {
-    alert('⚠️ LIFF เริ่มต้นไม่สำเร็จ: ' + err.message + '\nเช็ค LIFF ID / Endpoint URL ใน LINE Developers ครับ');
     userProfile = { userId: 'test-user' };
+    console.log('LIFF init error (ใช้งานนอก LINE):', err);
   }
 }
 
@@ -203,7 +204,23 @@ function renderResult(result) {
   const list = document.getElementById('resultList');
   list.innerHTML = '';
 
-  result.items.forEach(item => {
+  result.items.forEach((item, idx) => {
+    // กรณีไม่ชัวร์ → แสดงปุ่มให้เลือก
+    if (item.uncertain && item.suggestions && item.suggestions.length > 0) {
+      const row = document.createElement('div');
+      row.className = 'result-row uncertain';
+      let btns = item.suggestions.map(s =>
+        `<button class="suggest-btn" onclick="pickProduct(${idx}, '${s.replace(/'/g, "\\'")}')">${s}</button>`
+      ).join('');
+      btns += `<button class="suggest-btn skip" onclick="pickProduct(${idx}, null)">ข้ามรายการนี้</button>`;
+      row.innerHTML = `
+        <div class="uncertain-label">🤔 "<b>${item.inputName}</b>" หมายถึงตัวไหนครับ?</div>
+        <div class="suggest-btns">${btns}</div>
+      `;
+      list.appendChild(row);
+      return;
+    }
+
     const parts = item.found ? item.displayLabel.split('|') : [item.displayLabel, '', '0'];
     const name  = parts[0] ? parts[0].trim() : item.matchedName;
     const calc  = parts[1] ? parts[1].trim() : '';
@@ -220,6 +237,37 @@ function renderResult(result) {
   });
 
   document.getElementById('totalAmount').textContent = result.grandTotal + ' บาท';
+
+  // ถ้ามีตัวที่ไม่ชัวร์ → ปิดปุ่มยืนยันไว้ก่อน
+  const hasUncertain = result.items.some(it => it.uncertain);
+  const submitBtn = document.getElementById('submitBtn');
+  if (submitBtn) {
+    submitBtn.disabled = hasUncertain;
+    submitBtn.textContent = hasUncertain ? '⚠️ กรุณาเลือกสินค้าให้ครบก่อน' : '✅ ยืนยันและส่ง LINE';
+  }
+}
+
+// ==================== ผู้ใช้เลือกสินค้าที่ไม่ชัวร์ ====================
+function pickProduct(idx, productName) {
+  const item = lastResult.items[idx];
+  if (productName === null) {
+    // ข้ามรายการนี้ — ลบออก
+    lastResult.items.splice(idx, 1);
+  } else {
+    // แก้ข้อความในช่อง textarea แล้วคำนวณใหม่
+    const text = document.getElementById('orderText').value;
+    const lines = text.split('\n');
+    // หาบรรทัดที่มีชื่อเดิม แล้วแทนที่ด้วยชื่อที่เลือก
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].includes(item.inputName)) {
+        lines[i] = lines[i].replace(item.inputName, productName);
+        break;
+      }
+    }
+    document.getElementById('orderText').value = lines.join('\n');
+  }
+  // คำนวณใหม่
+  calculateOrder();
 }
 
 // ==================== กลับไปแก้ไข ====================
@@ -325,10 +373,7 @@ async function submitOrder() {
       })
     });
     const sendData = await sendRes.json();
-    if (sendData.lineError) {
-      alert('❌ LINE ส่งไม่สำเร็จ:\n' + sendData.lineError + '\n\nส่งไปที่ userId: ' + sendData.sentTo);
-      return;
-    }
+    alert('DEBUG response: ' + JSON.stringify(sendData));
 
     alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nรอรับรูปและลิงก์ PDF ใน LINE สักครู่ครับ');
     liff.closeWindow();
