@@ -58,6 +58,47 @@
     .suggest-btn { padding: 8px 12px; background: white; border: 1.5px solid #ffb74d; border-radius: 8px; font-size: 13px; font-family: 'Sarabun', sans-serif; color: #333; cursor: pointer; }
     .suggest-btn:active { background: #fff3e0; }
     .suggest-btn.skip { border-color: #ddd; color: #999; }
+
+    /* ปุ่มเปลี่ยนรุ่น (บนแต่ละรายการ) */
+    .result-item { padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+    .result-item:last-child { border-bottom: none; }
+    .result-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .result-item-name { font-size: 14px; font-weight: 600; color: #333; }
+    .result-item.notfound .result-item-name { color: #e53935; }
+    .result-item-calc { font-size: 12px; color: #999; margin-top: 2px; }
+    .result-item-amt { font-size: 14px; font-weight: 700; color: #00B900; white-space: nowrap; }
+    .change-btn {
+      margin-top: 8px; display: inline-flex; align-items: center; gap: 4px;
+      padding: 5px 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 12px; font-family: 'Sarabun', sans-serif; color: #666; cursor: pointer;
+    }
+    .change-btn:active { background: #eee; }
+
+    /* Bottom sheet เลือกรุ่น */
+    .sheet-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 200; align-items: flex-end;
+    }
+    .sheet-overlay.show { display: flex; }
+    .sheet {
+      width: 100%; max-width: 480px; margin: 0 auto; background: white;
+      border-radius: 18px 18px 0 0; padding: 16px; max-height: 70vh; overflow-y: auto;
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .sheet-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 12px; }
+    .sheet-title { font-size: 15px; font-weight: 700; color: #333; margin-bottom: 2px; }
+    .sheet-sub { font-size: 12px; color: #999; margin-bottom: 14px; }
+    .variant-btn {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 14px; margin-bottom: 8px; background: white; border: 1.5px solid #e0e0e0;
+      border-radius: 10px; font-family: 'Sarabun', sans-serif; cursor: pointer; text-align: left;
+    }
+    .variant-btn:active { background: #f5f5f5; }
+    .variant-btn.selected { border-color: #00B900; background: #f1f8e9; }
+    .variant-name { font-size: 14px; font-weight: 600; color: #333; }
+    .variant-price { font-size: 14px; font-weight: 600; color: #00B900; }
+    .variant-btn.selected .variant-price { color: #2e7d32; }
     .result-name { flex: 1; color: #333; line-height: 1.4; }
     .result-calc { color: #888; font-size: 12px; white-space: nowrap; }
     .result-amt { font-weight: 700; color: #00B900; white-space: nowrap; min-width: 60px; text-align: right; }
@@ -125,12 +166,23 @@
   <button class="btn-submit" id="submitBtn" onclick="submitOrder()">✅ ยืนยันและส่ง LINE</button>
 </div>
 
+<!-- แผงเลือกรุ่นสินค้า -->
+<div class="sheet-overlay" id="variantOverlay" onclick="if(event.target===this)closeVariantSheet()">
+  <div class="sheet" id="variantSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="variantTitle">เลือกรุ่น</div>
+    <div class="sheet-sub">แตะเพื่อเปลี่ยนรุ่นสินค้า ราคาจะอัปเดตทันที</div>
+    <div id="variantList"></div>
+  </div>
+</div>
+
 <script>
 const LIFF_ID = '2010175558-CXXV0qXs'; // TODO: ใส่ LIFF ID ของหน้านี้
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjYJjHiXNm7M-Xh4r40jMyOJakjcOOvOHq5WJkSlxegAImV/exec';
 
 let userProfile = null;
 let lastResult   = null;
+let overrides    = {};  // { "ชื่อที่พิมพ์": "ชื่อเต็มรุ่นที่เลือก" }
 
 // ==================== INIT (ไม่ต้องโหลดสินค้าเลย เร็วมาก) ====================
 async function init() {
@@ -168,7 +220,7 @@ async function calculateOrder() {
     const res = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'calcTextOrder', orderText })
+      body: JSON.stringify({ action: 'calcTextOrder', orderText, overrides })
     });
     const data = await res.json();
 
@@ -205,7 +257,7 @@ function renderResult(result) {
   list.innerHTML = '';
 
   result.items.forEach((item, idx) => {
-    // กรณีไม่ชัวร์ → แสดงปุ่มให้เลือก
+    // กรณีไม่ชัวร์ → แสดงปุ่มให้เลือก (fuzzy ไม่เจอ)
     if (item.uncertain && item.suggestions && item.suggestions.length > 0) {
       const row = document.createElement('div');
       row.className = 'result-row uncertain';
@@ -226,14 +278,25 @@ function renderResult(result) {
     const calc  = parts[1] ? parts[1].trim() : '';
     const total = parts[2] ? parts[2].trim() : '0';
 
-    const row = document.createElement('div');
-    row.className = 'result-row' + (item.found ? '' : ' notfound');
-    row.innerHTML = `
-      <div class="result-name">${name}${item.found ? '' : ' ⚠️'}</div>
-      <div class="result-calc">${calc}</div>
-      <div class="result-amt">${total} บ.</div>
-    `;
-    list.appendChild(row);
+    const wrap = document.createElement('div');
+    wrap.className = 'result-item' + (item.found ? '' : ' notfound');
+
+    let html = `
+      <div class="result-item-top">
+        <div style="flex:1;">
+          <div class="result-item-name">${name}${item.found ? '' : ' ⚠️'}</div>
+          <div class="result-item-calc">${calc}</div>
+        </div>
+        <div class="result-item-amt">${total} บ.</div>
+      </div>`;
+
+    // ถ้าสินค้ามีหลายรุ่นในกลุ่ม → แสดงปุ่มเปลี่ยน
+    if (item.found && item.variants && item.variants.length > 1) {
+      html += `<button class="change-btn" onclick="openVariantSheet(${idx})">🔄 เปลี่ยนรุ่น (${item.variants.length} แบบ)</button>`;
+    }
+
+    wrap.innerHTML = html;
+    list.appendChild(wrap);
   });
 
   document.getElementById('totalAmount').textContent = result.grandTotal + ' บาท';
@@ -270,8 +333,46 @@ function pickProduct(idx, productName) {
   calculateOrder();
 }
 
+// ==================== เปิดแผงเลือกรุ่น ====================
+function openVariantSheet(idx) {
+  const item = lastResult.items[idx];
+  if (!item.variants || item.variants.length < 2) return;
+
+  const overlay = document.getElementById('variantOverlay');
+  const sheet   = document.getElementById('variantSheet');
+  document.getElementById('variantTitle').textContent = 'เลือกรุ่น "' + (item.groupName || item.matchedName) + '"';
+
+  const listEl = document.getElementById('variantList');
+  listEl.innerHTML = '';
+  item.variants.forEach(v => {
+    const isSelected = (v.fullName === item.matchedFull);
+    const btn = document.createElement('button');
+    btn.className = 'variant-btn' + (isSelected ? ' selected' : '');
+    btn.innerHTML = `
+      <span class="variant-name">${v.name}${isSelected ? ' ✓' : ''}</span>
+      <span class="variant-price">${v.price} บ./ถุง</span>
+    `;
+    btn.onclick = () => selectVariant(item.inputName, v.fullName);
+    listEl.appendChild(btn);
+  });
+
+  overlay.classList.add('show');
+}
+
+function closeVariantSheet() {
+  document.getElementById('variantOverlay').classList.remove('show');
+}
+
+// ==================== เลือกรุ่นใหม่ → คำนวณใหม่ ====================
+function selectVariant(inputName, fullName) {
+  overrides[inputName] = fullName;   // จำว่าชื่อที่พิมพ์นี้ ให้ใช้รุ่นเต็มนี้
+  closeVariantSheet();
+  calculateOrder();
+}
+
 // ==================== กลับไปแก้ไข ====================
 function backToEdit() {
+  overrides = {};  // เคลียร์รุ่นที่เคยเลือก เพราะกำลังจะแก้ข้อความใหม่
   document.getElementById('inputCard').style.display = 'block';
   document.getElementById('resultCard').style.display = 'none';
   document.getElementById('bottomBar').style.display = 'none';
