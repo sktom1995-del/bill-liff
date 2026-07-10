@@ -36,6 +36,20 @@
     textarea:focus { outline: none; border-color: #00B900; }
     textarea::placeholder { color: #bbb; }
 
+    /* แถบเลขบรรทัด (gutter) */
+    .editor-wrap { display: flex; border: 1.5px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+    .editor-wrap:focus-within { border-color: #00B900; }
+    .line-gutter {
+      flex: 0 0 auto; min-width: 32px; padding: 12px 6px; text-align: right;
+      background: #f7f7f7; color: #bbb; font-size: 15px; line-height: 1.6;
+      font-family: 'Sarabun', sans-serif; user-select: none; overflow: hidden;
+      white-space: pre; border-right: 1px solid #eee;
+    }
+    .editor-wrap textarea {
+      border: none; border-radius: 0; min-height: 220px; flex: 1;
+    }
+    .editor-wrap textarea:focus { border: none; }
+
     .hint { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.5; }
     .hint b { color: #666; }
 
@@ -67,6 +81,9 @@
     .result-item.notfound .result-item-name { color: #e53935; }
     .result-item-calc { font-size: 12px; color: #999; margin-top: 2px; }
     .result-item-src { font-size: 11px; color: #bbb; margin-top: 3px; font-family: monospace; }
+    .check-summary { padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 12px; text-align: center; }
+    .check-summary.ok { background: #e8f5e9; color: #2e7d32; }
+    .check-summary.warn { background: #fff8e1; color: #f57f17; }
     .result-item-amt { font-size: 14px; font-weight: 700; color: #00B900; white-space: nowrap; }
     .change-btn {
       margin-top: 8px; display: inline-flex; align-items: center; gap: 4px;
@@ -135,10 +152,13 @@
 
     <div class="field">
       <label>รายการสินค้า (1 บรรทัดต่อ 1 รายการ)</label>
-      <textarea id="orderText" placeholder="ลูกชิ้นหมู 5
+      <div class="editor-wrap">
+        <div class="line-gutter" id="lineGutter">1</div>
+        <textarea id="orderText" placeholder="ลูกชิ้นหมู 5
 วุ้นเส้น 2 หิ้ว
 ไส้กรอกแดง 3 ถุง
 หมูฟ้ากลาง 10 โล"></textarea>
+      </div>
       <div class="hint">
         รูปแบบ: <b>ชื่อสินค้า จำนวน หน่วย</b><br>
         หน่วยที่รองรับ: ถุง (ไม่ใส่ก็ได้), หิ้ว, โล, ลัง
@@ -200,6 +220,26 @@ async function init() {
     userProfile = { userId: 'test-user' };
     console.log('LIFF init error (ใช้งานนอก LINE):', err);
   }
+  setupLineGutter();
+}
+
+// ==================== แถบเลขบรรทัด ====================
+function setupLineGutter() {
+  const ta     = document.getElementById('orderText');
+  const gutter = document.getElementById('lineGutter');
+  if (!ta || !gutter) return;
+
+  function updateGutter() {
+    const lines = ta.value.split('\n').length || 1;
+    let nums = '';
+    for (let i = 1; i <= lines; i++) nums += i + '\n';
+    gutter.textContent = nums;
+  }
+  // อัปเดตเลขทุกครั้งที่พิมพ์
+  ta.addEventListener('input', updateGutter);
+  // เลื่อน gutter ตาม textarea
+  ta.addEventListener('scroll', function() { gutter.scrollTop = ta.scrollTop; });
+  updateGutter();
 }
 
 // ==================== คำนวณราคา (ส่งไป GAS) ====================
@@ -256,6 +296,28 @@ function renderResult(result) {
   document.getElementById('resultCustomer').textContent = 'ลูกค้า: ' + result.customerName;
   const list = document.getElementById('resultList');
   list.innerHTML = '';
+
+  // ===== แถบสรุป: นับว่าครบไหม =====
+  const totalItems   = result.items.length;
+  const foundItems   = result.items.filter(it => it.found).length;
+  const uncertainCnt = result.items.filter(it => it.uncertain).length;
+  const notFoundCnt  = result.items.filter(it => !it.found && !it.uncertain).length;
+  const typedCount   = result.inputLineCount || totalItems;
+
+  const summary = document.createElement('div');
+  const allGood = (foundItems === totalItems && totalItems === typedCount);
+  summary.className = 'check-summary ' + (allGood ? 'ok' : 'warn');
+  let summaryText;
+  if (allGood) {
+    summaryText = `✅ พิมพ์มา ${typedCount} รายการ · คำนวณครบทุกตัว`;
+  } else {
+    let parts = [`พิมพ์มา ${typedCount}`, `คำนวณได้ ${foundItems}`];
+    if (uncertainCnt > 0) parts.push(`ต้องเลือก ${uncertainCnt}`);
+    if (notFoundCnt > 0)  parts.push(`ไม่พบ ${notFoundCnt}`);
+    summaryText = '⚠️ ' + parts.join(' · ');
+  }
+  summary.textContent = summaryText;
+  list.appendChild(summary);
 
   result.items.forEach((item, idx) => {
     // กรณีไม่ชัวร์ → แสดงปุ่มให้เลือก (fuzzy ไม่เจอ)
