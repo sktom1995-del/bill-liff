@@ -568,9 +568,8 @@ async function submitOrder() {
       })
     });
     const sendData = await sendRes.json();
-    alert('DEBUG response: ' + JSON.stringify(sendData));
 
-    alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nรอรับรูปและลิงก์ PDF ใน LINE สักครู่ครับ');
+    alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nรอรับรูปบิลและลิงก์ PDF ใน LINE สักครู่ครับ');
     liff.closeWindow();
   } catch(err) {
     alert('❌ ส่งไม่ได้: ' + err.message);
