@@ -66,6 +66,7 @@
     .result-item-name { font-size: 14px; font-weight: 600; color: #333; }
     .result-item.notfound .result-item-name { color: #e53935; }
     .result-item-calc { font-size: 12px; color: #999; margin-top: 2px; }
+    .result-item-src { font-size: 11px; color: #bbb; margin-top: 3px; font-family: monospace; }
     .result-item-amt { font-size: 14px; font-weight: 700; color: #00B900; white-space: nowrap; }
     .change-btn {
       margin-top: 8px; display: inline-flex; align-items: center; gap: 4px;
@@ -286,6 +287,7 @@ function renderResult(result) {
         <div style="flex:1;">
           <div class="result-item-name">${name}${item.found ? '' : ' ⚠️'}</div>
           <div class="result-item-calc">${calc}</div>
+          <div class="result-item-src">✎ พิมพ์: "${item.originalText || ''}"</div>
         </div>
         <div class="result-item-amt">${total} บ.</div>
       </div>`;
