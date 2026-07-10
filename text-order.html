@@ -314,22 +314,14 @@ function renderResult(result) {
 function pickProduct(idx, productName) {
   const item = lastResult.items[idx];
   if (productName === null) {
-    // ข้ามรายการนี้ — ลบออก
+    // ข้ามรายการนี้ — ลบออกจากจอทันที ไม่ต้องเรียก GAS
     lastResult.items.splice(idx, 1);
-  } else {
-    // แก้ข้อความในช่อง textarea แล้วคำนวณใหม่
-    const text = document.getElementById('orderText').value;
-    const lines = text.split('\n');
-    // หาบรรทัดที่มีชื่อเดิม แล้วแทนที่ด้วยชื่อที่เลือก
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].includes(item.inputName)) {
-        lines[i] = lines[i].replace(item.inputName, productName);
-        break;
-      }
-    }
-    document.getElementById('orderText').value = lines.join('\n');
+    recalcGrandTotal();
+    renderResult(lastResult);
+    return;
   }
-  // คำนวณใหม่
+  // ล็อคตัวเลือกด้วย override → GAS จะข้าม Gemini สำหรับตัวนี้ (เร็วขึ้น)
+  overrides[item.inputName] = productName;
   calculateOrder();
 }
 
@@ -338,8 +330,6 @@ function openVariantSheet(idx) {
   const item = lastResult.items[idx];
   if (!item.variants || item.variants.length < 2) return;
 
-  const overlay = document.getElementById('variantOverlay');
-  const sheet   = document.getElementById('variantSheet');
   document.getElementById('variantTitle').textContent = 'เลือกรุ่น "' + (item.groupName || item.matchedName) + '"';
 
   const listEl = document.getElementById('variantList');
@@ -350,24 +340,41 @@ function openVariantSheet(idx) {
     btn.className = 'variant-btn' + (isSelected ? ' selected' : '');
     btn.innerHTML = `
       <span class="variant-name">${v.name}${isSelected ? ' ✓' : ''}</span>
-      <span class="variant-price">${v.price} บ./ถุง</span>
+      <span class="variant-price">${v.total} บ.</span>
     `;
-    btn.onclick = () => selectVariant(item.inputName, v.fullName);
+    btn.onclick = () => selectVariant(idx, v);
     listEl.appendChild(btn);
   });
 
-  overlay.classList.add('show');
+  document.getElementById('variantOverlay').classList.add('show');
 }
 
 function closeVariantSheet() {
   document.getElementById('variantOverlay').classList.remove('show');
 }
 
-// ==================== เลือกรุ่นใหม่ → คำนวณใหม่ ====================
-function selectVariant(inputName, fullName) {
-  overrides[inputName] = fullName;   // จำว่าชื่อที่พิมพ์นี้ ให้ใช้รุ่นเต็มนี้
+// ==================== เลือกรุ่นใหม่ → อัปเดตในเครื่องทันที (ไม่เรียก GAS) ====================
+function selectVariant(idx, variant) {
+  const item = lastResult.items[idx];
+
+  // อัปเดตข้อมูล item ในเครื่องเลย
+  item.matchedName  = variant.name;
+  item.matchedFull  = variant.fullName;
+  item.displayLabel = variant.displayLabel;
+  item.total        = variant.total;
+  overrides[item.inputName] = variant.fullName;  // จำไว้ใช้ตอนส่ง LINE
+
+  // คำนวณยอดรวมใหม่จากข้อมูลในเครื่อง
+  recalcGrandTotal();
   closeVariantSheet();
-  calculateOrder();
+  renderResult(lastResult);  // วาดใหม่ทันที ไม่ต้องรอ GAS
+}
+
+// ==================== คำนวณยอดรวมใหม่จากข้อมูลในเครื่อง ====================
+function recalcGrandTotal() {
+  let sum = 0;
+  lastResult.items.forEach(it => { if (it.found) sum += (it.total || 0); });
+  lastResult.grandTotal = sum;
 }
 
 // ==================== กลับไปแก้ไข ====================
