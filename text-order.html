@@ -476,21 +476,29 @@ function generateBillImage(result) {
   });
 
   const W = 360, ROW_H = 36;
-  const H = 130 + rows.length * ROW_H + 60;
+  const HEAD_H = 74;   // ความสูงส่วนหัวใหม่
+  const H = HEAD_H + rows.length * ROW_H + 76;
   const canvas = document.createElement('canvas');
   canvas.width = W * 2; canvas.height = H * 2;
   const ctx = canvas.getContext('2d');
   ctx.scale(2, 2);
 
+  // พื้นขาว
   ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#00B900'; ctx.fillRect(0, 0, W, 56);
-  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 17px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('🧾 ร้านลูกชิ้นมนต์ชัย', W/2, 22);
-  ctx.font = '11px sans-serif';
-  ctx.fillText('📞 077210037  |  LINE: 077210037', W/2, 38);
-  ctx.fillText('ลูกค้า: ' + result.customerName, W/2, 52);
+  // แถบเขียวบางๆ ด้านบน (ตกแต่ง)
+  ctx.fillStyle = '#00B900'; ctx.fillRect(0, 0, W, 8);
 
-  let y = 76;
+  // ลูกค้า (ตัวใหญ่ ดำ)
+  ctx.fillStyle = '#222'; ctx.font = 'bold 19px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('ลูกค้า: ' + result.customerName, 16, 38);
+  // วันที่ (เล็ก เทา)
+  ctx.fillStyle = '#888'; ctx.font = '13px sans-serif';
+  ctx.fillText('วันที่ ' + now, 16, 58);
+  // เส้นคั่นใต้หัว
+  ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(16, 68); ctx.lineTo(W-16, 68); ctx.stroke();
+
+  let y = HEAD_H + 24;
   rows.forEach(row => {
     ctx.fillStyle = row.found ? '#333' : '#e53935';
     ctx.font = '13px sans-serif'; ctx.textAlign = 'left';
