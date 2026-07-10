@@ -261,10 +261,10 @@ function renderResult(result) {
     if (item.uncertain && item.suggestions && item.suggestions.length > 0) {
       const row = document.createElement('div');
       row.className = 'result-row uncertain';
-      let btns = item.suggestions.map(s =>
-        `<button class="suggest-btn" onclick="pickProduct(${idx}, '${s.replace(/'/g, "\\'")}')">${s}</button>`
+      let btns = item.suggestions.map((s, sIdx) =>
+        `<button class="suggest-btn" onclick="pickProduct(${idx}, ${sIdx})">${s.name}<br><span style="font-size:11px;color:#00B900;">${s.total} บ.</span></button>`
       ).join('');
-      btns += `<button class="suggest-btn skip" onclick="pickProduct(${idx}, null)">ข้ามรายการนี้</button>`;
+      btns += `<button class="suggest-btn skip" onclick="pickProduct(${idx}, -1)">ข้ามรายการนี้</button>`;
       row.innerHTML = `
         <div class="uncertain-label">🤔 "<b>${item.inputName}</b>" หมายถึงตัวไหนครับ?</div>
         <div class="suggest-btns">${btns}</div>
@@ -310,19 +310,34 @@ function renderResult(result) {
   }
 }
 
-// ==================== ผู้ใช้เลือกสินค้าที่ไม่ชัวร์ ====================
-function pickProduct(idx, productName) {
+// ==================== ผู้ใช้เลือกสินค้าที่ไม่ชัวร์ → อัปเดตทันที (ไม่เรียก GAS) ====================
+function pickProduct(idx, sIdx) {
   const item = lastResult.items[idx];
-  if (productName === null) {
-    // ข้ามรายการนี้ — ลบออกจากจอทันที ไม่ต้องเรียก GAS
+
+  if (sIdx === -1) {
+    // ข้ามรายการนี้ — ลบออกจากจอทันที
     lastResult.items.splice(idx, 1);
     recalcGrandTotal();
     renderResult(lastResult);
     return;
   }
-  // ล็อคตัวเลือกด้วย override → GAS จะข้าม Gemini สำหรับตัวนี้ (เร็วขึ้น)
-  overrides[item.inputName] = productName;
-  calculateOrder();
+
+  // หยิบตัวเลือกที่เลือก (มีราคาคำนวณมาแล้วจาก backend)
+  const chosen = item.suggestions[sIdx];
+  if (!chosen) return;
+
+  // แปลง item นี้จาก "ไม่ชัวร์" เป็น "พบแล้ว" ด้วยข้อมูลที่เลือก
+  item.found        = true;
+  item.uncertain    = false;
+  item.suggestions  = null;
+  item.matchedName  = chosen.name;
+  item.matchedFull  = chosen.fullName;
+  item.displayLabel = chosen.displayLabel;
+  item.total        = chosen.total;
+  overrides[item.inputName] = chosen.fullName;  // จำไว้ใช้ตอนส่ง LINE
+
+  recalcGrandTotal();
+  renderResult(lastResult);  // วาดใหม่ทันที ไม่ต้องรอ GAS
 }
 
 // ==================== เปิดแผงเลือกรุ่น ====================
