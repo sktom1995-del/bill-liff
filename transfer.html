@@ -321,14 +321,14 @@ function onSlipSelected(ev) {
   reader.onload = function() {
     const img = new Image();
     img.onload = async function() {
-      // ย่อรูปให้กว้างไม่เกิน 1000px (ลดขนาด ส่งเร็วขึ้น อ่านง่ายขึ้น)
-      const MAX_W = 1000;
+      // ย่อรูปให้กว้างไม่เกิน 800px (สลิปอ่านออกสบาย + ส่งเร็วขึ้นมาก)
+      const MAX_W = 800;
       let w = img.width, h = img.height;
       if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const resized = canvas.toDataURL('image/jpeg', 0.85);
+      const resized = canvas.toDataURL('image/jpeg', 0.8);
 
       slipBase64 = resized.split(',')[1];
       slipMime = 'image/jpeg';
