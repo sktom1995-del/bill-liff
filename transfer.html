@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>บันทึกการโอนเงิน</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Sarabun',sans-serif; background:#f0f2f5; color:#333; padding-bottom:80px; }
+  .header { background:#00B900; color:#fff; padding:16px; text-align:center; position:sticky; top:0; z-index:10; }
+  .header h1 { font-size:18px; font-weight:700; }
+  .header .sub { font-size:12px; opacity:.9; margin-top:2px; }
+  .wrap { padding:14px; max-width:480px; margin:0 auto; }
+  .card { background:#fff; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+
+  input[type=text], input[type=search] {
+    width:100%; padding:11px 12px; border:1.5px solid #e0e0e0; border-radius:8px;
+    font-size:15px; font-family:'Sarabun',sans-serif;
+  }
+  input:focus { outline:none; border-color:#00B900; }
+  label { display:block; font-size:12px; color:#888; margin-bottom:4px; }
+  .field { margin-bottom:12px; }
+
+  .cust-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 14px; border:1px solid #eee; border-radius:10px; margin-bottom:8px; cursor:pointer;
+  }
+  .cust-row:active { background:#f5f5f5; }
+  .cust-left { display:flex; align-items:center; gap:10px; }
+  .avatar {
+    width:38px; height:38px; border-radius:50%; background:#e8f5e9; color:#2e7d32;
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;
+  }
+  .cust-name { font-size:15px; }
+  .arrow { color:#ccc; font-size:18px; }
+
+  .add-btn {
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:13px; border:1.5px dashed #bbb; border-radius:10px; color:#666; font-size:14px; cursor:pointer;
+  }
+  .add-btn:active { background:#f5f5f5; }
+
+  .drop {
+    border:2px dashed #bbb; border-radius:10px; padding:26px 14px; text-align:center;
+    color:#888; font-size:14px; cursor:pointer; margin-bottom:12px;
+  }
+  .drop:active { background:#fafafa; }
+  .drop .ic { font-size:30px; display:block; margin-bottom:6px; }
+  .preview { width:100%; border-radius:10px; margin-bottom:12px; display:none; }
+
+  .ai-note {
+    background:#e8f5e9; color:#2e7d32; padding:9px 12px; border-radius:8px;
+    font-size:12px; margin-bottom:12px; display:none;
+  }
+  .ai-loading { background:#fff8e1; color:#f57f17; }
+
+  .btn-primary {
+    width:100%; padding:13px; background:#00B900; color:#fff; border:none; border-radius:10px;
+    font-size:16px; font-weight:700; font-family:'Sarabun',sans-serif; cursor:pointer;
+  }
+  .btn-primary:active { background:#009900; }
+  .btn-primary:disabled { background:#ccc; }
+  .btn-back {
+    background:none; border:none; color:#fff; font-size:15px; font-family:'Sarabun',sans-serif;
+    cursor:pointer; position:absolute; left:14px; top:50%; transform:translateY(-50%);
+  }
+  .header-rel { position:relative; }
+
+  .total-box {
+    display:flex; align-items:baseline; gap:8px; margin-bottom:14px;
+    padding-bottom:12px; border-bottom:2px solid #00B900;
+  }
+  .total-box .label { font-size:13px; color:#888; }
+  .total-box .val { font-size:24px; font-weight:700; color:#00B900; }
+
+  .tf-row { display:flex; align-items:center; gap:11px; padding:11px 0; border-top:1px solid #f2f2f2; }
+  .tf-icon {
+    width:40px; height:40px; border-radius:8px; background:#f5f5f5;
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+  }
+  .tf-info { flex:1; }
+  .tf-amt { font-size:15px; font-weight:600; }
+  .tf-meta { font-size:12px; color:#888; margin-top:1px; }
+  .tf-link { color:#00B900; font-size:20px; text-decoration:none; }
+
+  .empty { text-align:center; color:#aaa; padding:30px 0; font-size:14px; }
+  .loading { text-align:center; color:#888; padding:20px 0; font-size:14px; }
+  .hidden { display:none; }
+</style>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+
+<div class="header header-rel">
+  <button class="btn-back hidden" id="backBtn" onclick="goBack()">‹ กลับ</button>
+  <h1 id="pageTitle">💸 บันทึกการโอนเงิน</h1>
+  <div class="sub" id="pageSub">เลือกลูกค้า</div>
+</div>
+
+<div class="wrap">
+
+  <!-- ========== หน้า 1: เลือกลูกค้า ========== -->
+  <div id="page1">
+    <div class="card">
+      <div class="field">
+        <input type="search" id="searchCust" placeholder="🔍 ค้นหาชื่อลูกค้า..." oninput="filterCustomers()">
+      </div>
+      <div id="custList"><div class="loading">กำลังโหลดรายชื่อ...</div></div>
+      <div class="add-btn" onclick="showAddCustomer()">＋ เพิ่มลูกค้าใหม่</div>
+    </div>
+    <div style="text-align:center; margin-top:6px;">
+      <span onclick="showMyId()" style="font-size:12px; color:#aaa; cursor:pointer; text-decoration:underline;">ดู User ID ของฉัน</span>
+    </div>
+  </div>
+
+  <!-- ========== หน้า 2: อัปสลิป ========== -->
+  <div id="page2" class="hidden">
+    <div class="card">
+      <div style="font-size:13px; color:#888; margin-bottom:10px;">โอนให้: <b id="p2Customer" style="color:#333;"></b></div>
+
+      <input type="file" id="slipFile" accept="image/*" class="hidden" onchange="onSlipSelected(event)">
+      <div class="drop" id="dropZone" onclick="document.getElementById('slipFile').click()">
+        <span class="ic">📷</span>
+        แตะเพื่อถ่าย / เลือกสลิป
+      </div>
+      <img id="preview" class="preview">
+
+      <div class="ai-note" id="aiNote"></div>
+
+      <div class="field">
+        <label>ยอดเงิน (บาท)</label>
+        <input type="text" id="fAmount" inputmode="decimal" placeholder="เช่น 1250">
+      </div>
+      <div class="field">
+        <label>วันที่-เวลาที่โอน</label>
+        <input type="text" id="fDate" placeholder="เช่น 8 ก.ค. 2568 09:15">
+      </div>
+      <div class="field">
+        <label>ธนาคาร</label>
+        <input type="text" id="fBank" placeholder="เช่น กสิกรไทย">
+      </div>
+
+      <button class="btn-primary" id="saveBtn" onclick="doSave()">บันทึก</button>
+    </div>
+  </div>
+
+  <!-- ========== หน้า 3: ดูย้อนหลัง ========== -->
+  <div id="page3" class="hidden">
+    <div class="card">
+      <div style="font-size:16px; font-weight:700; margin-bottom:2px;" id="p3Customer"></div>
+      <div class="total-box">
+        <span class="label">ยอดรวมทั้งหมด</span>
+        <span class="val" id="p3Total">0 บ.</span>
+      </div>
+      <div id="tfList"><div class="loading">กำลังโหลด...</div></div>
+    </div>
+    <button class="btn-primary" onclick="showPage2()" style="margin-top:4px;">＋ เพิ่มสลิปใหม่</button>
+  </div>
+
+
+  <!-- ========== หน้า: แสดง userId (สำหรับตั้งค่าแอดมิน) ========== -->
+  <div id="pageId" class="hidden">
+    <div class="card">
+      <div style="font-size:15px; font-weight:600; margin-bottom:8px;">LINE User ID ของคุณ</div>
+      <div style="font-size:12px; color:#888; margin-bottom:10px;">ก็อปรหัสนี้ไปใส่ในชีต "แอดมิน" เพื่อให้ดูย้อนหลังได้</div>
+      <div id="myUserId" style="background:#f5f5f5; padding:12px; border-radius:8px; font-family:monospace; font-size:13px; word-break:break-all; margin-bottom:10px;"></div>
+      <button class="btn-primary" onclick="copyUserId()">📋 ก็อปรหัส</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const GAS_URL = 'ใส่_GAS_URL_ตรงนี้';
+const LIFF_ID = '2010175558-Q97lXAoO';
+
+let allCustomers = [];
+let currentCustomer = '';
+let slipBase64 = null;
+let slipMime = null;
+let myUserId = '';
+let iAmAdmin = false;
+
+// ==================== INIT ====================
+async function init() {
+  // เริ่ม LIFF + ดึง userId
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (liff.isLoggedIn()) {
+      const profile = await liff.getProfile();
+      myUserId = profile.userId;
+    } else if (liff.isInClient()) {
+      liff.login(); return;
+    }
+  } catch (err) {
+    console.log('LIFF init error (เปิดนอก LINE):', err);
+  }
+
+  // เช็คสิทธิ์แอดมิน
+  if (myUserId) {
+    try {
+      const res = await fetch(GAS_URL + '?action=checkAdmin&userId=' + encodeURIComponent(myUserId));
+      const data = await res.json();
+      iAmAdmin = !!data.isAdmin;
+    } catch (e) { iAmAdmin = false; }
+  }
+
+  await loadCustomers();
+}
+
+// ==================== หน้าแสดง userId (ตั้งค่าแอดมิน) ====================
+function showMyId() {
+  document.getElementById('myUserId').textContent = myUserId || '(ไม่พบ — เปิดผ่านแอป LINE)';
+  switchPage('pageId', 'User ID ของคุณ', 'สำหรับตั้งค่าแอดมิน');
+}
+
+function copyUserId() {
+  if (!myUserId) { alert('ไม่พบ User ID กรุณาเปิดผ่านแอป LINE'); return; }
+  const ta = document.createElement('textarea');
+  ta.value = myUserId;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  alert('✅ ก็อปแล้ว! เอาไปวางในชีต "แอดมิน" ได้เลย');
+}
+
+async function loadCustomers() {
+  try {
+    const res = await fetch(GAS_URL + '?action=getCustomers');
+    const data = await res.json();
+    allCustomers = data.customers || [];
+    renderCustomers(allCustomers);
+  } catch (e) {
+    document.getElementById('custList').innerHTML = '<div class="empty">โหลดรายชื่อไม่ได้</div>';
+  }
+}
+
+function renderCustomers(list) {
+  const el = document.getElementById('custList');
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty">ยังไม่มีลูกค้า กดปุ่มเพิ่มด้านล่าง</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(name){
+    const initial = name.replace(/^ร้าน/, '').slice(0, 2);
+    return '<div class="cust-row" onclick="selectCustomer(\'' + name.replace(/'/g,"\\'") + '\')">' +
+      '<div class="cust-left"><div class="avatar">' + initial + '</div>' +
+      '<span class="cust-name">' + name + '</span></div>' +
+      '<span class="arrow">›</span></div>';
+  }).join('');
+}
+
+function filterCustomers() {
+  const q = document.getElementById('searchCust').value.trim().toLowerCase();
+  renderCustomers(allCustomers.filter(function(n){ return n.toLowerCase().indexOf(q) >= 0; }));
+}
+
+async function showAddCustomer() {
+  const name = prompt('ชื่อลูกค้า / ร้าน:');
+  if (!name || !name.trim()) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'addCustomer', name: name.trim() })
+    });
+    const data = await res.json();
+    if (data.ok) { await loadCustomers(); }
+    else alert('เพิ่มไม่ได้: ' + (data.error || ''));
+  } catch (e) { alert('เพิ่มไม่ได้: ' + e.message); }
+}
+
+// ==================== เลือกลูกค้า ====================
+function selectCustomer(name) {
+  currentCustomer = name;
+  if (iAmAdmin) {
+    showPage3();   // แอดมิน → เห็นประวัติย้อนหลังก่อน
+  } else {
+    showPage2();   // ลูกน้อง → ไปอัปสลิปเลย ดูย้อนหลังไม่ได้
+  }
+}
+
+// ==================== หน้า 2: อัปสลิป ====================
+function showPage2() {
+  currentPage = 2;
+  document.getElementById('p2Customer').textContent = currentCustomer;
+  // reset
+  slipBase64 = null; slipMime = null;
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('aiNote').style.display = 'none';
+  document.getElementById('fAmount').value = '';
+  document.getElementById('fDate').value = '';
+  document.getElementById('fBank').value = '';
+  switchPage('page2', currentCustomer, 'อัปโหลดสลิป');
+}
+
+function onSlipSelected(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function() {
+    const dataUrl = reader.result;
+    slipBase64 = dataUrl.split(',')[1];
+    slipMime = file.type;
+    const img = document.getElementById('preview');
+    img.src = dataUrl;
+    img.style.display = 'block';
+    await runAI();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function runAI() {
+  const note = document.getElementById('aiNote');
+  note.className = 'ai-note ai-loading';
+  note.style.display = 'block';
+  note.textContent = '🔍 กำลังอ่านสลิป...';
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'readSlip', imageBase64: slipBase64, mimeType: slipMime })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('fAmount').value = data.amount || '';
+      document.getElementById('fDate').value = data.date || '';
+      document.getElementById('fBank').value = data.bank || '';
+      note.className = 'ai-note';
+      note.textContent = '✨ AI อ่านสลิปแล้ว — ตรวจดูก่อนบันทึกครับ';
+    } else {
+      note.className = 'ai-note ai-loading';
+      note.textContent = '⚠️ ' + (data.error || 'อ่านไม่ได้ กรอกเองได้เลย');
+    }
+  } catch (e) {
+    note.className = 'ai-note ai-loading';
+    note.textContent = '⚠️ อ่านสลิปไม่ได้ กรอกเองได้เลย';
+  }
+}
+
+async function doSave() {
+  const amount = document.getElementById('fAmount').value.trim();
+  if (!amount) { alert('กรุณากรอกยอดเงิน'); return; }
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'saveTransfer',
+        customer: currentCustomer,
+        amount: amount,
+        date: document.getElementById('fDate').value.trim(),
+        bank: document.getElementById('fBank').value.trim(),
+        imageBase64: slipBase64,
+        mimeType: slipMime
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert('✅ บันทึกเรียบร้อยแล้วครับ');
+      if (iAmAdmin) showPage3();
+      else switchPage('page1', '💸 บันทึกการโอนเงิน', 'เลือกลูกค้า');
+    } else {
+      alert('บันทึกไม่ได้: ' + (data.error || ''));
+    }
+  } catch (e) { alert('บันทึกไม่ได้: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'บันทึก';
+}
+
+// ==================== หน้า 3: ดูย้อนหลัง ====================
+async function showPage3() {
+  switchPage('page3', currentCustomer, 'ประวัติการโอน');
+  document.getElementById('p3Customer').textContent = currentCustomer;
+  document.getElementById('p3Total').textContent = '...';
+  document.getElementById('tfList').innerHTML = '<div class="loading">กำลังโหลด...</div>';
+  try {
+    const res = await fetch(GAS_URL + '?action=getTransfers&customer=' + encodeURIComponent(currentCustomer) + '&userId=' + encodeURIComponent(myUserId));
+    const data = await res.json();
+    if (data.denied) {
+      document.getElementById('p3Total').textContent = '-';
+      document.getElementById('tfList').innerHTML = '<div class="empty">🔒 คุณไม่มีสิทธิ์ดูย้อนหลัง</div>';
+      return;
+    }
+    document.getElementById('p3Total').textContent = (data.total || 0).toLocaleString() + ' บ.';
+    renderTransfers(data.transfers || []);
+  } catch (e) {
+    document.getElementById('tfList').innerHTML = '<div class="empty">โหลดไม่ได้</div>';
+  }
+}
+
+function renderTransfers(list) {
+  const el = document.getElementById('tfList');
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty">ยังไม่มีรายการโอน</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(t){
+    const link = t.slipUrl && t.slipUrl.indexOf('http') === 0
+      ? '<a class="tf-link" href="' + t.slipUrl + '" target="_blank">🖼️</a>' : '';
+    return '<div class="tf-row">' +
+      '<div class="tf-icon">🧾</div>' +
+      '<div class="tf-info"><div class="tf-amt">' + t.amount.toLocaleString() + ' บ.</div>' +
+      '<div class="tf-meta">' + (t.date || t.savedAt) + (t.bank ? ' · ' + t.bank : '') + '</div></div>' +
+      link + '</div>';
+  }).join('');
+}
+
+// ==================== นำทางระหว่างหน้า ====================
+let currentPage = 1;
+function switchPage(pageId, title, sub) {
+  ['page1','page2','page3'].forEach(function(p){
+    document.getElementById(p).classList.add('hidden');
+  });
+  document.getElementById(pageId).classList.remove('hidden');
+  document.getElementById('pageTitle').textContent = title || '💸 บันทึกการโอนเงิน';
+  document.getElementById('pageSub').textContent = sub || '';
+  document.getElementById('backBtn').classList.toggle('hidden', pageId === 'page1');
+  currentPage = pageId === 'page1' ? 1 : (pageId === 'page2' ? 2 : 3);
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  if (currentPage === 2 && iAmAdmin) { showPage3(); }   // แอดมิน: กลับไปดูย้อนหลัง
+  else { switchPage('page1', '💸 บันทึกการโอนเงิน', 'เลือกลูกค้า'); }
+}
+
+init();
+</script>
+</body>
+</html>
