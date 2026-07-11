@@ -177,6 +177,8 @@ let slipBase64 = null;
 let slipMime = null;
 let myUserId = '';
 let iAmAdmin = false;
+let adminCheckPromise = null;
+const ADMIN_CACHE_KEY = 'montchai_isadmin_v1';
 
 // ==================== INIT ====================
 async function init() {
@@ -193,15 +195,24 @@ async function init() {
     console.log('LIFF init error (เปิดนอก LINE):', err);
   }
 
-  // โหลดรายชื่อ (จาก cache ทันที) + เช็คสิทธิ์ พร้อมกัน ไม่ต้องรอทีละอัน
-  const checkAdminTask = myUserId
+  // โหลดสถานะแอดมินจาก cache ก่อน (รู้ทันที ไม่ต้องรอ)
+  try {
+    const cachedAdmin = localStorage.getItem(ADMIN_CACHE_KEY);
+    if (cachedAdmin !== null) iAmAdmin = (cachedAdmin === '1');
+  } catch (e) {}
+
+  // เช็คสิทธิ์จริงเบื้องหลัง (เก็บ promise ไว้ เผื่อต้องรอ)
+  adminCheckPromise = myUserId
     ? fetch(GAS_URL + '?action=checkAdmin&userId=' + encodeURIComponent(myUserId))
         .then(function(r){ return r.json(); })
-        .then(function(d){ iAmAdmin = !!d.isAdmin; })
-        .catch(function(){ iAmAdmin = false; })
+        .then(function(d){
+          iAmAdmin = !!d.isAdmin;
+          try { localStorage.setItem(ADMIN_CACHE_KEY, iAmAdmin ? '1' : '0'); } catch(e) {}
+        })
+        .catch(function(){ /* เช็คไม่ได้ — ใช้ค่าจาก cache ต่อไป */ })
     : Promise.resolve();
 
-  await Promise.all([ loadCustomers(), checkAdminTask ]);
+  await Promise.all([ loadCustomers(), adminCheckPromise ]);
 }
 
 // ==================== หน้าแสดง userId (ตั้งค่าแอดมิน) ====================
@@ -291,8 +302,12 @@ async function showAddCustomer() {
 }
 
 // ==================== เลือกลูกค้า ====================
-function selectCustomer(name) {
+async function selectCustomer(name) {
   currentCustomer = name;
+  // รอเช็คสิทธิ์ให้เสร็จก่อน (ถ้ายังไม่เสร็จ) จะได้ไม่เด้งผิดหน้า
+  if (adminCheckPromise) {
+    try { await adminCheckPromise; } catch (e) {}
+  }
   if (iAmAdmin) {
     showPage3();   // แอดมิน → เห็นประวัติย้อนหลังก่อน
   } else {
