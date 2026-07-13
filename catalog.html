@@ -143,17 +143,38 @@ let categories  = [];
 let currentCat  = 'ทั้งหมด';
 let cart        = {};   // { "ชื่อสินค้า": จำนวน }
 
+const CACHE_KEY = 'montchai_catalog_v2';
+
 // ==================== INIT ====================
 async function init() {
+  // 1) แสดงจาก cache ในเครื่องก่อนทันที (ถ้ามี)
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      allProducts = data.products || [];
+      categories  = data.categories || [];
+      renderTabs();
+      renderGrid();
+    }
+  } catch (e) {}
+
+  // 2) โหลดตัวจริงเบื้องหลัง แล้วอัปเดตถ้าเปลี่ยน
   try {
     const res = await fetch(GAS_URL + '?action=getCatalog');
     const data = await res.json();
-    allProducts = data.products || [];
-    categories  = data.categories || [];
-    renderTabs();
-    renderGrid();
+    const fresh = data.products || [];
+    if (JSON.stringify(fresh) !== JSON.stringify(allProducts)) {
+      allProducts = fresh;
+      categories  = data.categories || [];
+      renderTabs();
+      renderGrid();
+    }
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
   } catch (e) {
-    document.getElementById('grid').innerHTML = '<div class="empty">โหลดสินค้าไม่ได้</div>';
+    if (allProducts.length === 0) {
+      document.getElementById('grid').innerHTML = '<div class="empty">โหลดสินค้าไม่ได้</div>';
+    }
   }
 }
 
