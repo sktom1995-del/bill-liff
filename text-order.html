@@ -147,7 +147,14 @@
 
     <div class="field">
       <label>ชื่อลูกค้า / ชื่อร้าน</label>
-      <input type="text" id="customerInput" placeholder="เช่น ร้านสังกะสี">
+      <div style="display:flex; gap:8px;">
+        <select id="customerSelect" style="flex:1; padding:11px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:15px; font-family:'Sarabun',sans-serif; background:#fff;">
+          <option value="">— เลือกลูกค้า —</option>
+        </select>
+        <button type="button" id="newCustBtn" onclick="addNewCustomer()"
+          style="flex-shrink:0; padding:0 14px; border:1.5px solid #00B900; background:#e8f5e9; color:#2e7d32; border-radius:8px; font-size:14px; font-family:'Sarabun',sans-serif; cursor:pointer; white-space:nowrap;">＋ ใหม่</button>
+      </div>
+      <input type="hidden" id="customerInput">
     </div>
 
     <div class="field">
@@ -221,6 +228,61 @@ async function init() {
     console.log('LIFF init error (ใช้งานนอก LINE):', err);
   }
   setupLineGutter();
+  setupCustomerDropdown();
+  loadCustomerList();
+}
+
+// ==================== dropdown รายชื่อลูกค้า ====================
+const CUST_CACHE_KEY = 'montchai_ordercustomers_v1';
+
+function setupCustomerDropdown() {
+  const sel = document.getElementById('customerSelect');
+  const hidden = document.getElementById('customerInput');
+  // เลือกจาก dropdown → เก็บค่าลง hidden input (ที่ calculateOrder อ่าน)
+  sel.addEventListener('change', function() {
+    hidden.value = sel.value;
+  });
+}
+
+function renderCustomerOptions(list, keep) {
+  const sel = document.getElementById('customerSelect');
+  let html = '<option value="">— เลือกลูกค้า —</option>';
+  list.forEach(function(name){
+    const s = (name === keep) ? ' selected' : '';
+    html += '<option value="' + name.replace(/"/g,'&quot;') + '"' + s + '>' + name + '</option>';
+  });
+  sel.innerHTML = html;
+}
+
+async function loadCustomerList() {
+  // แสดงจาก cache ก่อนทันที
+  try {
+    const cached = localStorage.getItem(CUST_CACHE_KEY);
+    if (cached) renderCustomerOptions(JSON.parse(cached), document.getElementById('customerInput').value);
+  } catch(e) {}
+
+  // โหลดตัวจริงเบื้องหลัง
+  try {
+    const res = await fetch(GAS_URL + '?action=getCustomers');
+    const list = await res.json();
+    if (Array.isArray(list)) {
+      renderCustomerOptions(list, document.getElementById('customerInput').value);
+      localStorage.setItem(CUST_CACHE_KEY, JSON.stringify(list));
+    }
+  } catch(e) { console.log('โหลดรายชื่อลูกค้าไม่ได้:', e); }
+}
+
+// เพิ่มลูกค้าใหม่ (พิมพ์ชื่อ → ใช้เลย พอบันทึกบิลจะเข้าชีตเอง ครั้งหน้ามีให้เลือก)
+function addNewCustomer() {
+  const name = prompt('ชื่อลูกค้า / ร้านใหม่:');
+  if (!name || !name.trim()) return;
+  const clean = name.trim();
+  const sel = document.getElementById('customerSelect');
+  // เพิ่มเข้า dropdown แล้วเลือกทันที
+  const opt = document.createElement('option');
+  opt.value = clean; opt.textContent = clean; opt.selected = true;
+  sel.appendChild(opt);
+  document.getElementById('customerInput').value = clean;
 }
 
 // ==================== แถบเลขบรรทัด ====================
