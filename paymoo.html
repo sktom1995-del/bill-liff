@@ -95,8 +95,8 @@
 </div>
 
 <script>
-var LIFF_ID = '2010866027-hAaJJRsU';
-var GAS_URL = 'https://script.google.com/macros/s/AKfycby6V6vx8teACp8u975xqI4FA6JtUszqnLgkbaoOeZdjkr7LdQBJfUqOt5ZyabC75T2Hzw/exec';
+var LIFF_ID = 'ใส่ LIFF_ID ของหน้ายอดโอน';
+var GAS_URL = 'ใส่ Web App URL (deploy) ของ GAS (ตัวเดียวกับ stock)';
 
 var profile = { userId:'', displayName:'' };
 
@@ -175,7 +175,50 @@ function newRound() {
     if (!res.ok) { showMsg(res.error||'ไม่สำเร็จ', 'err'); return; }
     renderRound(res);
     showMsg('เริ่มรอบที่ '+res.round+' แล้ว', 'ok');
+    // เด้ง Flex สรุปรอบที่เพิ่งปิด (ถ้ามีบิล)
+    if (res.closedBills && res.closedBills.length > 0) {
+      sendRoundFlex(res.closedRound, res.closedBills, res.closedTotal);
+    }
   });
+}
+
+function sendRoundFlex(round, bills, total) {
+  if (!liff.isInClient || !liff.isInClient()) return;
+
+  var rows = bills.map(function(b, i){
+    return {
+      type:'box', layout:'horizontal', margin:'md',
+      contents:[
+        { type:'text', text:'บิลที่ '+(i+1)+' · '+b.billDate, size:'sm', color:'#333333', flex:6, wrap:true },
+        { type:'text', text:fmtBaht(b.amount), size:'sm', color:'#333333', align:'end', flex:3 }
+      ]
+    };
+  });
+
+  var bubble = {
+    type:'bubble',
+    header:{
+      type:'box', layout:'vertical', paddingAll:'14px', backgroundColor:'#185fa5',
+      contents:[
+        { type:'text', text:'ยอดโอนรอบที่ '+round, color:'#ffffff', weight:'bold', size:'md' },
+        { type:'text', text:'ลูกชิ้นหมู · '+bills.length+' บิล', color:'#cfe2f5', size:'sm', margin:'xs' }
+      ]
+    },
+    body:{
+      type:'box', layout:'vertical', paddingAll:'14px', spacing:'none',
+      contents: rows.concat([
+        { type:'separator', margin:'lg' },
+        { type:'box', layout:'horizontal', margin:'lg', contents:[
+          { type:'text', text:'รวมทั้งหมด', size:'md', weight:'bold', color:'#185fa5', flex:5 },
+          { type:'text', text:fmtBaht(total)+' บาท', size:'md', weight:'bold', color:'#185fa5', align:'end', flex:5 }
+        ]}
+      ])
+    }
+  };
+
+  liff.sendMessages([
+    { type:'flex', altText:'ยอดโอนรอบที่ '+round+' รวม '+fmtBaht(total)+' บาท', contents: bubble }
+  ]).catch(function(e){ console.log('sendMessages error', e); });
 }
 
 function initApp() {
