@@ -595,11 +595,14 @@ function generateBillImage(result) {
 async function submitOrder() {
   if (!lastResult) return;
 
-  // สร้างรูปบิลก่อน (เร็ว ทำในเครื่อง)
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังส่ง...';
+
+  // สร้างรูปบิล (เร็ว ทำในเครื่อง)
   let imageBase64 = null;
   try { imageBase64 = generateBillImage(lastResult); } catch(e) { console.log('image gen error:', e); }
 
-  // เก็บข้อมูลไว้ส่ง
   const payload = {
     customerName: lastResult.customerName,
     items: lastResult.items,
@@ -607,17 +610,43 @@ async function submitOrder() {
     userId: userProfile.userId
   };
 
-  // เด้งแจ้งสำเร็จทันที (ไม่รออะไร)
+  // อัปรูป ImgBB ให้เสร็จก่อน (การันตีรูปเข้า LINE)
+  let imageUrl = null;
+  try {
+    if (imageBase64) {
+      const base64Data = imageBase64.replace('data:image/png;base64,', '');
+      const formData = new FormData();
+      formData.append('key', '323f3ae0cacf9ccb4711ef15746f14f5');
+      formData.append('image', base64Data);
+      formData.append('name', 'bill_' + payload.customerName + '_' + Date.now());
+      const imgRes = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
+      const imgData = await imgRes.json();
+      if (imgData.success) imageUrl = imgData.data.url;
+    }
+  } catch(e) { console.log('image upload error:', e); }
+
+  // ส่ง backend แบบ keepalive (ไม่ต้องรอ backend ทำงานจนจบ)
+  fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    keepalive: true,
+    body: JSON.stringify({
+      action: 'sendImageAndSaveAndPDF',
+      userId: payload.userId,
+      customerName: payload.customerName,
+      items: payload.items,
+      itemsWithLabel: payload.items,
+      grandTotal: payload.grandTotal,
+      imageUrl: imageUrl
+    })
+  }).catch(function(e){ console.log('send error:', e); });
+
+  // เด้งแจ้งสำเร็จ แล้วปิดหน้า
   alert('✅ ส่งรายการเรียบร้อยแล้วครับ!\nรอรับรูปบิลและ PDF ใน LINE สักครู่ครับ');
-
-  // ทำงานเบื้องหลัง: อัพรูป ImgBB → ส่ง backend
-  // รอให้เริ่มส่งก่อนค่อยปิดหน้า (กัน ImgBB ถูกตัดกลางคัน)
-  await sendInBackground(payload, imageBase64);
-
   liff.closeWindow();
 }
 
-// ส่งเบื้องหลัง — ไม่บล็อกหน้าจอ
+// ส่งเบื้องหลัง — ไม่บล็อกหน้าจอ (ไม่ได้ใช้แล้ว แต่เก็บไว้)
 async function sendInBackground(payload, imageBase64) {
   let imageUrl = null;
   try {
