@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ยอดโอน มนต์ชัย</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root { --bd:#e5e5e5; --mut:#8a8a8a; --pri:#185fa5; --danger:#b3261e; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,"Helvetica Neue",Arial,"Noto Sans Thai",sans-serif;
+         margin:0; background:#f4f4f2; color:#1a1a1a; }
+  .wrap { max-width:520px; margin:0 auto; padding:14px; }
+  .card { background:#fff; border:1px solid var(--bd); border-radius:12px; overflow:hidden; margin-bottom:14px; }
+  .pad { padding:14px; }
+  label.lbl { font-size:13px; color:var(--mut); display:block; margin:0 0 6px; }
+  input, button { font-size:15px; font-family:inherit; }
+  input { width:100%; height:44px; border:1px solid var(--bd); border-radius:8px; padding:0 12px; background:#fff; }
+  input.amt { text-align:center; font-size:18px; }
+  .btn-primary { width:100%; height:46px; border:none; border-radius:10px; background:#1a1a1a; color:#fff; font-weight:500; }
+  .btn-primary:active { transform:scale(0.99); }
+  .btn-primary:disabled { opacity:0.55; }
+  .btn-ghost { width:100%; height:42px; border:1px solid var(--bd); border-radius:10px; background:#fff; color:#b3261e; font-weight:500; }
+  .head { font-size:15px; font-weight:600; }
+  .sub { font-size:12px; color:var(--mut); margin-top:2px; }
+  .billrow { display:flex; justify-content:space-between; align-items:center; padding:11px 2px; border-bottom:1px solid var(--bd); }
+  .billrow:last-child { border-bottom:none; }
+  .bill-n { font-size:14px; }
+  .bill-d { font-size:12px; color:var(--mut); margin-left:8px; }
+  .bill-amt { font-size:15px; font-weight:500; }
+  .total { background:#eef4fb; border-top:1px solid var(--bd); padding:14px; display:flex; justify-content:space-between; align-items:baseline; }
+  .total-l { font-size:14px; font-weight:500; color:var(--pri); }
+  .total-v { font-size:20px; font-weight:600; color:var(--pri); }
+  .msg { font-size:13px; padding:8px 12px; border-radius:8px; margin-top:10px; display:none; }
+  .msg.ok { background:#e6efe9; color:#1f6f43; display:block; }
+  .msg.err { background:#fbe9e7; color:var(--danger); display:block; }
+  .empty { padding:20px 14px; text-align:center; color:var(--mut); font-size:14px; }
+  .lock { padding:40px 20px; text-align:center; color:var(--mut); }
+  .lock i { font-size:40px; display:block; margin-bottom:10px; }
+  h1 { font-size:18px; font-weight:600; margin:2px 2px 12px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ยอดโอนลูกชิ้นหมู</h1>
+
+  <div id="lockScreen" class="card hidden">
+    <div class="lock">
+      <div style="font-size:40px;">🔒</div>
+      เฉพาะเจ้าของร้านเท่านั้น
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+
+    <div class="card">
+      <div class="pad">
+        <div class="head">คีย์ยอดบิล</div>
+        <div class="sub" id="roundInfo">รอบปัจจุบัน</div>
+        <div style="margin-top:14px;">
+          <label class="lbl">วันที่บิล</label>
+          <input type="date" id="billDate">
+        </div>
+        <div style="margin-top:12px;">
+          <label class="lbl">ยอดบิลนี้ (บาท)</label>
+          <input type="number" inputmode="decimal" id="amount" class="amt" placeholder="เช่น 3500">
+        </div>
+        <button class="btn-primary" id="addBtn" style="margin-top:14px;">+ เพิ่มบิล</button>
+        <div class="msg" id="msg"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="pad" style="padding-bottom:4px;">
+        <div class="head">บิลในรอบนี้</div>
+      </div>
+      <div id="billList" class="pad" style="padding-top:6px;">
+        <div class="empty">ยังไม่มีบิลในรอบนี้</div>
+      </div>
+      <div class="total">
+        <span class="total-l">รวมรอบนี้</span>
+        <span class="total-v" id="totalVal">0 บาท</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="pad">
+        <button class="btn-ghost" id="newRoundBtn">เริ่มรอบใหม่</button>
+        <div class="sub" style="text-align:center; margin-top:8px;">เริ่มรอบใหม่แล้วบิลเก่ายังเก็บไว้ในชีต</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var LIFF_ID = 'ใส่ LIFF_ID ของหน้ายอดโอน';
+var GAS_URL = 'ใส่ Web App URL (deploy) ของ GAS (ตัวเดียวกับ stock)';
+var OWNER_USER_ID = 'ใส่ userId ของเจ้าของร้าน (ตัวเดียวกับใน Code.gs)';
+
+var profile = { userId:'', displayName:'' };
+
+function api(payload) {
+  return fetch(GAS_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); });
+}
+
+function showMsg(text, cls) {
+  var m = document.getElementById('msg');
+  m.textContent = text; m.className = 'msg ' + cls;
+  if (cls === 'ok') setTimeout(function(){ m.className='msg'; }, 2500);
+}
+
+function fmtBaht(n) { return Number(n).toLocaleString('th-TH'); }
+
+function renderRound(res) {
+  document.getElementById('roundInfo').textContent =
+    'รอบที่ ' + res.round + ' · คีย์แล้ว ' + res.bills.length + ' บิล';
+
+  var list = document.getElementById('billList');
+  if (!res.bills.length) {
+    list.innerHTML = '<div class="empty">ยังไม่มีบิลในรอบนี้</div>';
+  } else {
+    var html = '';
+    res.bills.forEach(function(b, i){
+      html += '<div class="billrow">'
+        + '<div><span class="bill-n">บิลที่ '+(i+1)+'</span><span class="bill-d">'+b.billDate+'</span></div>'
+        + '<span class="bill-amt">'+fmtBaht(b.amount)+'</span>'
+        + '</div>';
+    });
+    list.innerHTML = html;
+  }
+  document.getElementById('totalVal').textContent = fmtBaht(res.total) + ' บาท';
+}
+
+function loadRound() {
+  api({ action:'getTransferRound', userId:profile.userId }).then(function(res){
+    if (!res.ok) { showMsg(res.error||'โหลดไม่ได้', 'err'); return; }
+    renderRound(res);
+  });
+}
+
+function addBill() {
+  var amount = document.getElementById('amount').value;
+  var billDate = document.getElementById('billDate').value;
+  if (!amount || Number(amount) <= 0) { showMsg('ใส่ยอดบิลก่อน', 'err'); return; }
+
+  var btn = document.getElementById('addBtn');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+
+  api({ action:'addBill', userId:profile.userId, displayName:profile.displayName,
+        amount:amount, billDate:billDate })
+    .then(function(res){
+      btn.disabled=false; btn.textContent='+ เพิ่มบิล';
+      if (!res.ok) { showMsg(res.error||'บันทึกไม่สำเร็จ', 'err'); return; }
+      document.getElementById('amount').value = '';
+      renderRound(res);
+      showMsg('เพิ่มบิลแล้ว', 'ok');
+    })
+    .catch(function(e){
+      btn.disabled=false; btn.textContent='+ เพิ่มบิล';
+      showMsg('เชื่อมต่อไม่ได้: '+e, 'err');
+    });
+}
+
+function newRound() {
+  if (!confirm('เริ่มรอบใหม่? ยอดรอบนี้จะถูกปิด (บิลเก่ายังเก็บไว้)')) return;
+  var btn = document.getElementById('newRoundBtn');
+  btn.disabled = true; btn.textContent = 'กำลังเริ่ม…';
+  api({ action:'newRound', userId:profile.userId }).then(function(res){
+    btn.disabled=false; btn.textContent='เริ่มรอบใหม่';
+    if (!res.ok) { showMsg(res.error||'ไม่สำเร็จ', 'err'); return; }
+    renderRound(res);
+    showMsg('เริ่มรอบที่ '+res.round+' แล้ว', 'ok');
+  });
+}
+
+function initApp() {
+  // default วันที่บิล = วันนี้
+  var t = new Date();
+  var yyyy = t.getFullYear(), mm = ('0'+(t.getMonth()+1)).slice(-2), dd = ('0'+t.getDate()).slice(-2);
+  document.getElementById('billDate').value = yyyy+'-'+mm+'-'+dd;
+
+  document.getElementById('addBtn').addEventListener('click', addBill);
+  document.getElementById('newRoundBtn').addEventListener('click', newRound);
+  loadRound();
+}
+
+liff.init({ liffId: LIFF_ID }).then(function(){
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  return liff.getProfile();
+}).then(function(p){
+  if (!p) return;
+  profile.userId = p.userId;
+  profile.displayName = p.displayName || '';
+
+  // เช็คสิทธิ์: เฉพาะเจ้าของร้าน
+  if (profile.userId !== OWNER_USER_ID) {
+    document.getElementById('lockScreen').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('app').classList.remove('hidden');
+  initApp();
+}).catch(function(err){
+  document.getElementById('lockScreen').classList.remove('hidden');
+});
+</script>
+</body>
+</html>
