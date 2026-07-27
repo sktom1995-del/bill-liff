@@ -77,6 +77,7 @@ var GAS_URL = 'https://script.google.com/macros/s/AKfycby6V6vx8teACp8u975xqI4FA6
 
 var profile = { userId:'', displayName:'' };
 var currentProducts = [];
+var currentCompany = '';
 
 function api(payload) {
   return fetch(GAS_URL, {
@@ -127,6 +128,7 @@ function loadCompanies() {
 }
 
 function loadProducts(company) {
+  currentCompany = company;
   var wrap = document.getElementById('tableWrap');
   wrap.innerHTML = '<div class="empty">กำลังโหลด…</div>';
   api({ action:'getProducts', company:company }).then(function(res){
@@ -138,9 +140,18 @@ function loadProducts(company) {
 function save() {
   var qtys = document.querySelectorAll('.qty');
   var items = [];
+  var changes = []; // เก็บเฉพาะตัวที่เลขเปลี่ยน ไว้ทำ Flex
+
   qtys.forEach(function(inp, idx){
-    items.push({ rowIndex: currentProducts[idx].rowIndex, qty: inp.value });
+    var p = currentProducts[idx];
+    var newQty = Number(inp.value);
+    items.push({ rowIndex: p.rowIndex, qty: inp.value });
+    if (!isNaN(newQty) && newQty !== Number(p.qty)) {
+      changes.push({ name: p.name, unit: p.unit, oldQty: Number(p.qty), newQty: newQty });
+    }
   });
+
+  if (!changes.length) { showMsg('ไม่มีการเปลี่ยนแปลง', 'err'); return; }
 
   var btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
@@ -158,11 +169,67 @@ function save() {
         });
       });
       showMsg('บันทึกแล้ว', 'ok');
+      sendFlexSummary(changes); // ยิง Flex สรุปเฉพาะที่เปลี่ยน
     })
     .catch(function(e){
       btn.disabled=false; btn.textContent='บันทึกยอด';
       showMsg('เชื่อมต่อไม่ได้: '+e, 'err');
     });
+}
+
+// สร้าง Flex Message สรุปรายการที่เปลี่ยน แล้วส่งเข้าแชท OA ที่เปิดอยู่
+function sendFlexSummary(changes) {
+  if (!liff.isInClient || !liff.isInClient()) return; // ส่งได้เฉพาะเปิดผ่าน LINE
+
+  var now = new Date();
+  var timeStr = now.toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' });
+
+  var rows = changes.map(function(c){
+    var diff = c.newQty - c.oldQty;
+    var arrow = diff > 0 ? '▲' : '▼';
+    var diffColor = diff > 0 ? '#1f6f43' : '#b3261e';
+    return {
+      type:'box', layout:'horizontal', spacing:'sm', margin:'md',
+      contents:[
+        { type:'text', text:c.name, size:'sm', color:'#333333', flex:5, wrap:true },
+        { type:'text', text:c.oldQty+' → '+c.newQty+' '+c.unit, size:'sm',
+          color:'#666666', align:'end', flex:4 },
+        { type:'text', text:arrow, size:'sm', color:diffColor, align:'end', flex:1 }
+      ]
+    };
+  });
+
+  var bubble = {
+    type:'bubble',
+    header:{
+      type:'box', layout:'vertical', paddingAll:'14px', backgroundColor:'#1f6f43',
+      contents:[
+        { type:'text', text:'อัปเดตสต็อก', color:'#ffffff', weight:'bold', size:'md' },
+        { type:'text', text:currentCompany, color:'#d7ecdf', size:'sm', margin:'xs' }
+      ]
+    },
+    body:{
+      type:'box', layout:'vertical', paddingAll:'14px', spacing:'none',
+      contents:[
+        { type:'text', text:'รายการที่แก้ ('+changes.length+')', size:'xs', color:'#999999' }
+      ].concat(rows)
+    },
+    footer:{
+      type:'box', layout:'vertical', paddingAll:'12px',
+      contents:[
+        { type:'text', text:'โดย '+(profile.displayName||'-')+' · '+timeStr,
+          size:'xs', color:'#aaaaaa', wrap:true }
+      ]
+    }
+  };
+
+  liff.sendMessages([
+    { type:'flex', altText:'อัปเดตสต็อก '+currentCompany+' ('+changes.length+' รายการ)',
+      contents: bubble }
+  ]).catch(function(e){
+    // ส่งไม่สำเร็จก็ไม่ต้องรบกวนผู้ใช้ (ยอดบันทึกลงชีตไปแล้ว)
+    console.log('sendMessages error', e);
+  });
 }
 
 function initUI() {
