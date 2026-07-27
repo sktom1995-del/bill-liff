@@ -179,10 +179,7 @@ function save() {
 
 // สร้าง Flex Message สรุปรายการที่เปลี่ยน แล้วส่งเข้าแชท OA ที่เปิดอยู่
 function sendFlexSummary(changes) {
-  if (!liff.isInClient || !liff.isInClient()) {
-    showMsg('บันทึกแล้ว (เปิดนอก LINE จึงไม่ส่ง Flex)', 'ok');
-    return;
-  }
+  if (!liff.isInClient || !liff.isInClient()) return; // เปิดนอก LINE ไม่ส่ง/ไม่ปิด
 
   var now = new Date();
   var timeStr = now.toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' });
@@ -230,9 +227,9 @@ function sendFlexSummary(changes) {
     { type:'flex', altText:'อัปเดตสต็อก '+currentCompany+' ('+changes.length+' รายการ)',
       contents: bubble }
   ]).then(function(){
-    showMsg('บันทึกและส่ง Flex แล้ว', 'ok');
+    liff.closeWindow(); // ส่ง Flex เสร็จแล้วค่อยปิดหน้า LIFF
   }).catch(function(e){
-    // โชว์ error จริงชั่วคราว เพื่อดูว่าติดอะไร
+    // ส่งไม่สำเร็จ: ไม่ปิดหน้า จะได้เห็น error (ยอดบันทึกลงชีตไปแล้ว)
     showMsg('ส่ง Flex ไม่สำเร็จ: ' + (e && e.message ? e.message : JSON.stringify(e)), 'err');
   });
 }
