@@ -1040,8 +1040,17 @@ async function generatePDF() {
     });
     const data = await res.json();
     if (data.ok && data.pdfUrl) {
-      // เปิด PDF ในแท็บใหม่
-      window.open(data.pdfUrl, '_blank');
+      // เปิด PDF — ใน LIFF ใช้ liff.openWindow, ถ้า window.open ถูกบล็อกก็เปลี่ยน location แทน
+      try {
+        if (window.liff && liff.openWindow) {
+          liff.openWindow({ url: data.pdfUrl, external: true });
+        } else {
+          const w = window.open(data.pdfUrl, '_blank');
+          if (!w) location.href = data.pdfUrl;
+        }
+      } catch (openErr) {
+        location.href = data.pdfUrl;
+      }
       pdfBtn.textContent = '🖨️ PDF';
       pdfBtn.disabled = false;
     } else {
