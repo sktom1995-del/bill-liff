@@ -829,7 +829,7 @@ async function submitOrder() {
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: 'sendImageAndSave',
+        action: 'sendImageAndSaveAndPDF',
         userId: userProfile.userId,
         customerName: customer,
         items, itemsWithLabel, grandTotal,
