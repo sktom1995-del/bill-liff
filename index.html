@@ -465,7 +465,7 @@ async function submitOrder() {
       method: 'POST', mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
-        action: imageUrl ? 'sendImageAndSave' : 'submitOrder',
+        action: imageUrl ? 'sendImageAndSaveAndPDF' : 'submitOrder',
         userId: userProfile.userId,
         customerName: SHOP_NAME,
         items, itemsWithLabel, grandTotal: grandTotalCalc, imageUrl,
