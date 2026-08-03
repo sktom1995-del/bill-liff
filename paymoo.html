@@ -54,6 +54,10 @@
     </div>
   </div>
 
+  <div id="loading" class="card">
+    <div style="padding:40px 20px; text-align:center; color:var(--mut); font-size:14px;">กำลังโหลด…</div>
+  </div>
+
   <div id="app" class="hidden">
 
     <div class="card">
@@ -102,7 +106,7 @@ var LIFF_ID = '2010866027-hAaJJRsU';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycby6V6vx8teACp8u975xqI4FA6JtUszqnLgkbaoOeZdjkr7LdQBJfUqOt5ZyabC75T2Hzw/exec';
 
 // LIFF ID ของหน้าประวัติรอบ (rounds) — เก็บไว้เผื่อใช้ แต่ปุ่มเปิดผ่าน URL ตรง
-var ROUNDS_LIFF_ID = '2010866027-ECCNqToO';
+var ROUNDS_LIFF_ID = '2010175558-kbP0bOMe';
 // URL หน้า rounds บน GitHub Pages (เปิดตรง ไม่ผ่าน liff.line.me เพื่อกัน LIFF-in-LIFF error)
 var ROUNDS_URL = 'https://sktom1995-del.github.io/bill-liff/rounds.html';
 
@@ -265,6 +269,7 @@ liff.init({ liffId: LIFF_ID }).then(function(){
 
   // ยิง GAS ครั้งเดียว: getTransferRound คืนทั้งสิทธิ์ + ข้อมูลรอบ
   api({ action:'getTransferRound', userId:profile.userId }).then(function(res){
+    document.getElementById('loading').classList.add('hidden');
     if (res.ok && res.allowed) {
       document.getElementById('app').classList.remove('hidden');
       initApp(res);
@@ -272,9 +277,11 @@ liff.init({ liffId: LIFF_ID }).then(function(){
       document.getElementById('lockScreen').classList.remove('hidden');
     }
   }).catch(function(){
+    document.getElementById('loading').classList.add('hidden');
     document.getElementById('lockScreen').classList.remove('hidden');
   });
 }).catch(function(err){
+  document.getElementById('loading').classList.add('hidden');
   document.getElementById('lockScreen').classList.remove('hidden');
 });
 </script>
