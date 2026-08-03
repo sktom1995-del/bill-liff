@@ -21,6 +21,8 @@
   .btn-primary:active { transform:scale(0.99); }
   .btn-primary:disabled { opacity:0.55; }
   .btn-ghost { width:100%; height:42px; border:1px solid var(--bd); border-radius:10px; background:#fff; color:#b3261e; font-weight:500; }
+  .btn-link { width:100%; height:44px; border:1px solid var(--bd); border-radius:10px; background:#fff; color:#185fa5; font-weight:500; }
+  .btn-link:active { transform:scale(0.99); }
   .head { font-size:15px; font-weight:600; }
   .sub { font-size:12px; color:var(--mut); margin-top:2px; }
   .billrow { display:flex; justify-content:space-between; align-items:center; padding:11px 2px; border-bottom:1px solid var(--bd); }
@@ -86,6 +88,7 @@
 
     <div class="card">
       <div class="pad">
+        <button class="btn-link" id="historyBtn" style="margin-bottom:10px;">ดูประวัติรอบ</button>
         <button class="btn-ghost" id="newRoundBtn">เริ่มรอบใหม่</button>
         <div class="sub" style="text-align:center; margin-top:8px;">เริ่มรอบใหม่แล้วบิลเก่ายังเก็บไว้ในชีต</div>
       </div>
@@ -97,6 +100,9 @@
 <script>
 var LIFF_ID = '2010866027-hAaJJRsU';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycby6V6vx8teACp8u975xqI4FA6JtUszqnLgkbaoOeZdjkr7LdQBJfUqOt5ZyabC75T2Hzw/exec';
+
+// LIFF ID ของหน้าประวัติรอบ (rounds) — *** แก้ตรงนี้เป็น LIFF ตัวใหม่ของหน้า rounds ***
+var ROUNDS_LIFF_ID = 'ใส่ LIFF ID ของหน้า rounds ตรงนี้';
 
 var profile = { userId:'', displayName:'' };
 
@@ -229,7 +235,17 @@ function initApp() {
 
   document.getElementById('addBtn').addEventListener('click', addBill);
   document.getElementById('newRoundBtn').addEventListener('click', newRound);
+  document.getElementById('historyBtn').addEventListener('click', openHistory);
   loadRound();
+}
+
+function openHistory() {
+  var url = 'https://liff.line.me/' + ROUNDS_LIFF_ID;
+  if (liff.openWindow) {
+    liff.openWindow({ url: url, external: false });
+  } else {
+    location.href = url;
+  }
 }
 
 liff.init({ liffId: LIFF_ID }).then(function(){
