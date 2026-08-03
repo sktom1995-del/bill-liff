@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ประวัติรอบโอน มนต์ชัย</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root { --bd:#e5e5e5; --mut:#8a8a8a; --pri:#185fa5; --open:#1f6f43; --danger:#b3261e; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,"Helvetica Neue",Arial,"Noto Sans Thai",sans-serif;
+         margin:0; background:#f4f4f2; color:#1a1a1a; }
+  .wrap { max-width:520px; margin:0 auto; padding:14px; }
+  h1 { font-size:18px; font-weight:600; margin:2px 2px 12px; }
+
+  .round { background:#fff; border:1px solid var(--bd); border-radius:12px; overflow:hidden; margin-bottom:12px; }
+  .head { display:flex; align-items:center; justify-content:space-between; padding:14px; cursor:pointer; }
+  .head-l { display:flex; align-items:center; gap:9px; min-width:0; }
+  .rno { font-size:16px; font-weight:600; }
+  .badge { font-size:11px; padding:2px 9px; border-radius:999px; color:#fff; white-space:nowrap; }
+  .badge.open { background:var(--open); }
+  .badge.closed { background:#7a828c; }
+  .head-r { text-align:right; white-space:nowrap; }
+  .total-v { font-size:17px; font-weight:600; color:var(--pri); }
+  .sub { font-size:12px; color:var(--mut); margin-top:2px; }
+  .chev { display:inline-block; margin-left:4px; transition:transform .18s; color:var(--mut); }
+  .round.exp .chev { transform:rotate(90deg); }
+
+  .bills { display:none; border-top:1px solid var(--bd); padding:4px 14px 6px; }
+  .round.exp .bills { display:block; }
+  .billrow { display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid #eee; }
+  .billrow:last-child { border-bottom:none; }
+  .bill-d { font-size:14px; }
+  .bill-t { font-size:11px; color:var(--mut); margin-top:2px; }
+  .bill-amt { font-size:15px; font-weight:500; white-space:nowrap; }
+  .bill-empty { padding:12px 0; color:var(--mut); font-size:13px; text-align:center; }
+
+  .state { padding:44px 20px; text-align:center; color:var(--mut); font-size:14px; }
+  .lock i { font-size:40px; display:block; margin-bottom:10px; }
+  .card { background:#fff; border:1px solid var(--bd); border-radius:12px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ประวัติรอบโอน</h1>
+
+  <div id="lockScreen" class="card hidden">
+    <div class="state lock">
+      <div style="font-size:40px;">🔒</div>
+      เฉพาะเจ้าของร้านเท่านั้น
+    </div>
+  </div>
+
+  <div id="loading" class="card">
+    <div class="state">กำลังโหลด…</div>
+  </div>
+
+  <div id="app" class="hidden"></div>
+</div>
+
+<script>
+var LIFF_ID = '2010866027-hAaJJRsU';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycby6V6vx8teACp8u975xqI4FA6JtUszqnLgkbaoOeZdjkr7LdQBJfUqOt5ZyabC75T2Hzw/exec';
+
+var profile = { userId:'', displayName:'' };
+
+function api(payload) {
+  return fetch(GAS_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); });
+}
+
+function fmtBaht(n) { return Number(n||0).toLocaleString('th-TH'); }
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function render(res) {
+  var app = document.getElementById('app');
+  var rounds = (res && res.rounds) || [];
+
+  if (!rounds.length) {
+    app.innerHTML = '<div class="card"><div class="state">ยังไม่มีรอบที่บันทึก</div></div>';
+    return;
+  }
+
+  var html = '';
+  rounds.forEach(function(r, i){
+    var open = (i === 0); // เปิดรอบล่าสุดไว้ให้อัตโนมัติ
+    var badge = r.closed
+      ? '<span class="badge closed">ปิดแล้ว</span>'
+      : '<span class="badge open">กำลังเปิด</span>';
+    var sub = r.closed
+      ? (r.billCount + ' บิล · ปิดรอบ ' + esc(r.closedAt))
+      : (r.billCount + ' บิล · ยังไม่ปิด');
+
+    var billsHtml = '';
+    (r.bills || []).forEach(function(b, j){
+      billsHtml += '<div class="billrow">'
+        + '<div><div class="bill-d">บิลที่ '+(j+1)+' · '+esc(b.billDate)+'</div>'
+        + '<div class="bill-t">คีย์ '+esc(b.keyedAt)+' · '+esc(b.keyedBy)+'</div></div>'
+        + '<div class="bill-amt">'+fmtBaht(b.amount)+'</div>'
+        + '</div>';
+    });
+    if (!billsHtml) billsHtml = '<div class="bill-empty">ไม่มีบิลในรอบนี้</div>';
+
+    html += '<div class="round'+(open?' exp':'')+'" data-i="'+i+'">'
+      + '<div class="head" data-toggle="'+i+'">'
+      +   '<div class="head-l"><span class="rno">รอบ '+r.round+'</span>'+badge+'</div>'
+      +   '<div class="head-r">'
+      +     '<div class="total-v">'+fmtBaht(r.total)+' บาท</div>'
+      +     '<div class="sub">'+sub+'<span class="chev">▸</span></div>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="bills">'+billsHtml+'</div>'
+      + '</div>';
+  });
+
+  app.innerHTML = html;
+
+  // ผูก event toggle (ไม่ใช้ inline onclick กัน CSP ใน LIFF)
+  var heads = app.querySelectorAll('.head[data-toggle]');
+  for (var k = 0; k < heads.length; k++) {
+    heads[k].addEventListener('click', function(){
+      var idx = this.getAttribute('data-toggle');
+      var el = app.querySelector('.round[data-i="'+idx+'"]');
+      if (el) el.classList.toggle('exp');
+    });
+  }
+}
+
+function showState(which) {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('lockScreen').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  if (which === 'lock') document.getElementById('lockScreen').classList.remove('hidden');
+  else if (which === 'app') document.getElementById('app').classList.remove('hidden');
+  else document.getElementById('loading').classList.remove('hidden');
+}
+
+function loadRounds() {
+  api({ action:'getRounds', userId:profile.userId }).then(function(res){
+    if (!res.ok) { showState('lock'); return; }
+    showState('app');
+    render(res);
+  }).catch(function(){
+    showState('lock');
+  });
+}
+
+liff.init({ liffId: LIFF_ID }).then(function(){
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  return liff.getProfile();
+}).then(function(p){
+  if (!p) return;
+  profile.userId = p.userId;
+  profile.displayName = p.displayName || '';
+
+  // เช็คสิทธิ์จาก Config (ฝั่ง GAS) เหมือนหน้า paymoo
+  api({ action:'checkAccess', userId:profile.userId }).then(function(res){
+    if (res.ok && res.allowed) {
+      loadRounds();
+    } else {
+      showState('lock');
+    }
+  }).catch(function(){
+    showState('lock');
+  });
+}).catch(function(err){
+  showState('lock');
+});
+</script>
+</body>
+</html>
