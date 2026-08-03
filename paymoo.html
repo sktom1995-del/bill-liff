@@ -102,7 +102,7 @@ var LIFF_ID = '2010866027-hAaJJRsU';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycby6V6vx8teACp8u975xqI4FA6JtUszqnLgkbaoOeZdjkr7LdQBJfUqOt5ZyabC75T2Hzw/exec';
 
 // LIFF ID ของหน้าประวัติรอบ (rounds) — เก็บไว้เผื่อใช้ แต่ปุ่มเปิดผ่าน URL ตรง
-var ROUNDS_LIFF_ID = '2010866027-ECCNqToO';
+var ROUNDS_LIFF_ID = '2010175558-kbP0bOMe';
 // URL หน้า rounds บน GitHub Pages (เปิดตรง ไม่ผ่าน liff.line.me เพื่อกัน LIFF-in-LIFF error)
 var ROUNDS_URL = 'https://sktom1995-del.github.io/bill-liff/rounds.html';
 
@@ -229,7 +229,7 @@ function sendRoundFlex(round, bills, total) {
   ]).catch(function(e){ console.log('sendMessages error', e); });
 }
 
-function initApp() {
+function initApp(res) {
   // default วันที่บิล = วันนี้
   var t = new Date();
   var yyyy = t.getFullYear(), mm = ('0'+(t.getMonth()+1)).slice(-2), dd = ('0'+t.getDate()).slice(-2);
@@ -238,13 +238,18 @@ function initApp() {
   document.getElementById('addBtn').addEventListener('click', addBill);
   document.getElementById('newRoundBtn').addEventListener('click', newRound);
   document.getElementById('historyBtn').addEventListener('click', openHistory);
-  loadRound();
+
+  // ข้อมูลรอบมากับ res ตั้งแต่ตอนเช็คสิทธิ์แล้ว ไม่ต้องยิง GAS ซ้ำ
+  if (res) renderRound(res);
+  else loadRound();
 }
 
 function openHistory() {
-  var url = ROUNDS_URL;
+  // เปิดหน้า rounds เป็น LIFF เต็มจอ: ใช้ LIFF URL + external:true
+  // ให้ LINE รับ deep link แล้ว route เข้า LIFF viewer เอง (กัน LIFF ซ้อน LIFF พัง)
+  var url = 'https://liff.line.me/' + ROUNDS_LIFF_ID;
   if (liff.openWindow) {
-    liff.openWindow({ url: url, external: false });
+    liff.openWindow({ url: url, external: true });
   } else {
     location.href = url;
   }
@@ -258,11 +263,11 @@ liff.init({ liffId: LIFF_ID }).then(function(){
   profile.userId = p.userId;
   profile.displayName = p.displayName || '';
 
-  // เช็คสิทธิ์จาก Config (ฝั่ง GAS)
-  api({ action:'checkAccess', userId:profile.userId }).then(function(res){
+  // ยิง GAS ครั้งเดียว: getTransferRound คืนทั้งสิทธิ์ + ข้อมูลรอบ
+  api({ action:'getTransferRound', userId:profile.userId }).then(function(res){
     if (res.ok && res.allowed) {
       document.getElementById('app').classList.remove('hidden');
-      initApp();
+      initApp(res);
     } else {
       document.getElementById('lockScreen').classList.remove('hidden');
     }
