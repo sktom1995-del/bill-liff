@@ -60,7 +60,7 @@
 </div>
 
 <script>
-var LIFF_ID = '2010866027-ECCNqToO';
+var LIFF_ID = '2010866027-hAaJJRsU';
 var GAS_URL = 'https://script.google.com/macros/s/AKfycby6V6vx8teACp8u975xqI4FA6JtUszqnLgkbaoOeZdjkr7LdQBJfUqOt5ZyabC75T2Hzw/exec';
 
 var profile = { userId:'', displayName:'' };
@@ -145,7 +145,7 @@ function showState(which) {
 
 function loadRounds() {
   api({ action:'getRounds', userId:profile.userId }).then(function(res){
-    if (!res.ok) { showState('lock'); return; }
+    if (!res.ok || !res.allowed) { showState('lock'); return; }
     showState('app');
     render(res);
   }).catch(function(){
@@ -161,10 +161,11 @@ liff.init({ liffId: LIFF_ID }).then(function(){
   profile.userId = p.userId;
   profile.displayName = p.displayName || '';
 
-  // เช็คสิทธิ์จาก Config (ฝั่ง GAS) เหมือนหน้า paymoo
-  api({ action:'checkAccess', userId:profile.userId }).then(function(res){
+  // ยิง GAS ครั้งเดียว: getRounds คืนทั้งสิทธิ์ + ข้อมูลรอบ
+  api({ action:'getRounds', userId:profile.userId }).then(function(res){
     if (res.ok && res.allowed) {
-      loadRounds();
+      showState('app');
+      render(res);
     } else {
       showState('lock');
     }
