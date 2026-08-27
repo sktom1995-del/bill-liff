@@ -84,8 +84,7 @@
     .check-summary { padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 12px; text-align: center; }
     .check-summary.ok { background: #e8f5e9; color: #2e7d32; }
     .check-summary.warn { background: #fff8e1; color: #f57f17; }
-    .bulk-group-bar { display: flex; align-items: center; gap: 6px; background: #e8f5e9; color: #2e7d32; font-size: 13px; font-weight: 500; padding: 9px 12px; border-radius: 8px; margin-bottom: 8px; }
-    .bulk-group-bar .bulk-icon { font-size: 14px; }
+    .bulk-badge { display: inline-flex; align-items: center; gap: 4px; background: #e8f5e9; color: #2e7d32; font-size: 12px; font-weight: 500; padding: 3px 8px; border-radius: 6px; margin: 4px 0 2px; }
     .result-item-amt { font-size: 14px; font-weight: 700; color: #00B900; white-space: nowrap; }
     .change-btn {
       margin-top: 8px; display: inline-flex; align-items: center; gap: 4px;
@@ -383,16 +382,6 @@ function renderResult(result) {
   summary.textContent = summaryText;
   list.appendChild(summary);
 
-  // ===== แถบแจ้งกลุ่มที่ครบขั้นต่ำ ได้ราคาส่ง =====
-  if (result.bulkGroups && result.bulkGroups.length > 0) {
-    result.bulkGroups.forEach(function(g) {
-      const bar = document.createElement('div');
-      bar.className = 'bulk-group-bar';
-      bar.innerHTML = '<span class="bulk-icon">🔗</span> กลุ่ม' + g.groupKey + 'ครบ ' + g.totalBags + ' ถุง ได้ราคาส่ง ' + g.bulkPrice + ' บ./ถุง';
-      list.appendChild(bar);
-    });
-  }
-
   result.items.forEach((item, idx) => {
     // กรณีไม่ชัวร์ → แสดงปุ่มให้เลือก (fuzzy ไม่เจอ)
     if (item.uncertain && item.suggestions && item.suggestions.length > 0) {
@@ -423,6 +412,7 @@ function renderResult(result) {
         <div style="flex:1;">
           <div class="result-item-name">${name}${item.found ? '' : ' ⚠️'}</div>
           <div class="result-item-calc">${calc}</div>
+          ${item.bulkFromGroup ? `<div class="bulk-badge">🔗 ราคาส่ง · รวมกลุ่ม${item.groupKey || ''}</div>` : ''}
           <div class="result-item-src">✎ พิมพ์: "${item.originalText || ''}"</div>
         </div>
         <div class="result-item-amt">${total} บ.</div>
@@ -559,10 +549,12 @@ async function recalcFromServer() {
       data.result.items.forEach(function(newIt, i) {
         const old = foundItems[i];
         if (old) {
-          old.total        = newIt.total;
-          old.displayLabel = newIt.displayLabel;
-          old.matchedName  = newIt.matchedName;
-          old.matchedFull  = newIt.matchedFull;
+          old.total         = newIt.total;
+          old.displayLabel  = newIt.displayLabel;
+          old.matchedName   = newIt.matchedName;
+          old.matchedFull   = newIt.matchedFull;
+          old.bulkFromGroup = newIt.bulkFromGroup;
+          old.groupKey      = newIt.groupKey;
         }
       });
       lastResult.grandTotal = data.result.grandTotal;
