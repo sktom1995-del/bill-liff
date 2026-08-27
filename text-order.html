@@ -212,6 +212,7 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbyphDzpsnZSkXrVUgn0uJjY
 let userProfile = null;
 let lastResult   = null;
 let overrides    = {};  // { "ชื่อที่พิมพ์": "ชื่อเต็มรุ่นที่เลือก" }
+let recalcSeq    = 0;    // นับ request คำนวณ กันผลเก่าทับผลใหม่
 
 // ==================== INIT (ไม่ต้องโหลดสินค้าเลย เร็วมาก) ====================
 async function init() {
@@ -522,8 +523,7 @@ function selectVariant(idx, variant) {
 // ใช้หลังเลือกรุ่น/เลือกสินค้า เพื่อให้ราค่าส่งแบบรวมกลุ่ม (groupKey) ถูกต้อง
 // เพราะ logic รวมกลุ่มอยู่ที่ server (analyzeOrder) ไม่ได้อยู่ในเครื่อง
 async function recalcFromServer() {
-  // ถ้ายังมีรายการที่ต้องเลือกค้างอยู่ อย่าเพิ่งยิง server (กันรายการที่เพิ่งเลือกเด้งกลับ)
-  if (!lastResult || lastResult.items.some(it => it.uncertain)) return;
+  if (!lastResult) return;
   const customer = document.getElementById('customerInput').value.trim();
 
   // ส่งเฉพาะรายการที่ resolve แล้ว → server คิดราคารวมกลุ่มตรงๆ ไม่ต้อง fuzzy (เร็วกว่ามาก)
@@ -537,17 +537,18 @@ async function recalcFromServer() {
     }));
 
   try {
+    const myReq = ++recalcSeq;
     const res = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'recalcOrder', customerName: customer, items: resolved })
     });
     const data = await res.json();
+    if (myReq !== recalcSeq) return;  // มีการเลือกใหม่ระหว่างรอ → ทิ้งผลเก่านี้
     if (data.ok && data.result && data.result.items) {
-      // merge ราคาใหม่กลับเข้า lastResult เดิม (จับคู่ตามลำดับรายการที่ found — กันสินค้าซ้ำชื่อ)
-      const foundItems = lastResult.items.filter(function(o){ return o.found; });
-      data.result.items.forEach(function(newIt, i) {
-        const old = foundItems[i];
+      // merge ราคาใหม่กลับเข้า lastResult เดิม (จับคู่ด้วย inputName)
+      data.result.items.forEach(function(newIt) {
+        const old = lastResult.items.find(function(o){ return o.found && o.inputName === newIt.inputName; });
         if (old) {
           old.total         = newIt.total;
           old.displayLabel  = newIt.displayLabel;
