@@ -452,8 +452,20 @@ function pickProduct(idx, sIdx) {
   const chosen = item.suggestions[sIdx];
   if (!chosen) return;
 
-  // จำรุ่นที่เลือก แล้วยิงกลับ server เพื่อคิดราคาส่งแบบรวมกลุ่ม
+  // 1) อัปเดตในเครื่องทันที ผู้ใช้เห็นผลเลย
+  item.found        = true;
+  item.uncertain    = false;
+  item.suggestions  = null;
+  item.matchedName  = chosen.name;
+  item.matchedFull  = chosen.fullName;
+  item.displayLabel = chosen.displayLabel;
+  item.total        = chosen.total;
   overrides[item.inputName] = chosen.fullName;
+
+  recalcGrandTotal();
+  renderResult(lastResult);
+
+  // 2) ยิง server เบื้องหลังเพื่อปรับราคารวมกลุ่มให้ถูกต้อง
   recalcFromServer();
 }
 
@@ -485,22 +497,33 @@ function closeVariantSheet() {
   document.getElementById('variantOverlay').classList.remove('show');
 }
 
-// ==================== เลือกรุ่นใหม่ → คำนวณใหม่ที่ server (รวมกลุ่มราคาส่งถูกต้อง) ====================
+// ==================== เลือกรุ่นใหม่ → อัปเดตทันที + ปรับราคารวมกลุ่มเบื้องหลัง ====================
 function selectVariant(idx, variant) {
   const item = lastResult.items[idx];
-  overrides[item.inputName] = variant.fullName;  // จำรุ่นที่เลือก
+
+  // 1) อัปเดตในเครื่องทันที ผู้ใช้เห็นผลเลยไม่ต้องรอ
+  item.matchedName  = variant.name;
+  item.matchedFull  = variant.fullName;
+  item.displayLabel = variant.displayLabel;
+  item.total        = variant.total;
+  overrides[item.inputName] = variant.fullName;
+
+  recalcGrandTotal();
   closeVariantSheet();
-  recalcFromServer();  // ยิงกลับ server เพื่อให้คิดราคาส่งแบบรวมกลุ่ม
+  renderResult(lastResult);
+
+  // 2) ยิง server เบื้องหลังเพื่อปรับราคารวมกลุ่ม (ราคาส่ง) ให้ถูกต้อง
+  recalcFromServer();
 }
 
 // ==================== คำนวณใหม่ที่ server โดยใช้ overrides ที่เลือกไว้ ====================
 // ใช้หลังเลือกรุ่น/เลือกสินค้า เพื่อให้ราค่าส่งแบบรวมกลุ่ม (groupKey) ถูกต้อง
 // เพราะ logic รวมกลุ่มอยู่ที่ server (analyzeOrder) ไม่ได้อยู่ในเครื่อง
 async function recalcFromServer() {
+  // ถ้ายังมีรายการที่ต้องเลือกค้างอยู่ อย่าเพิ่งยิง server (กันรายการที่เพิ่งเลือกเด้งกลับ)
+  if (lastResult && lastResult.items.some(it => it.uncertain)) return;
   const customer = document.getElementById('customerInput').value.trim();
   const text     = document.getElementById('orderText').value.trim();
-  const totalEl = document.getElementById('totalAmount');
-  if (totalEl) totalEl.textContent = 'กำลังคิด...';
   try {
     const orderText = customer + '\n' + text;
     const res = await fetch(GAS_URL, {
