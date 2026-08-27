@@ -521,22 +521,41 @@ function selectVariant(idx, variant) {
 // เพราะ logic รวมกลุ่มอยู่ที่ server (analyzeOrder) ไม่ได้อยู่ในเครื่อง
 async function recalcFromServer() {
   // ถ้ายังมีรายการที่ต้องเลือกค้างอยู่ อย่าเพิ่งยิง server (กันรายการที่เพิ่งเลือกเด้งกลับ)
-  if (lastResult && lastResult.items.some(it => it.uncertain)) return;
+  if (!lastResult || lastResult.items.some(it => it.uncertain)) return;
   const customer = document.getElementById('customerInput').value.trim();
-  const text     = document.getElementById('orderText').value.trim();
+
+  // ส่งเฉพาะรายการที่ resolve แล้ว → server คิดราคารวมกลุ่มตรงๆ ไม่ต้อง fuzzy (เร็วกว่ามาก)
+  const resolved = lastResult.items
+    .filter(it => it.found)
+    .map(it => ({
+      fullName:  it.matchedFull || it.matchedName,
+      inputQty:  it.inputQty,
+      inputUnit: it.inputUnit || 'ถุง',
+      inputName: it.inputName
+    }));
+
   try {
-    const orderText = customer + '\n' + text;
     const res = await fetch(GAS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'calcTextOrder', orderText, overrides })
+      body: JSON.stringify({ action: 'recalcOrder', customerName: customer, items: resolved })
     });
     const data = await res.json();
-    if (data.ok && !data.error && data.result) {
-      lastResult = data.result;
+    if (data.ok && data.result && data.result.items) {
+      // merge ราคาใหม่กลับเข้า lastResult เดิม (จับคู่ตามลำดับรายการที่ found — กันสินค้าซ้ำชื่อ)
+      const foundItems = lastResult.items.filter(function(o){ return o.found; });
+      data.result.items.forEach(function(newIt, i) {
+        const old = foundItems[i];
+        if (old) {
+          old.total        = newIt.total;
+          old.displayLabel = newIt.displayLabel;
+          old.matchedName  = newIt.matchedName;
+          old.matchedFull  = newIt.matchedFull;
+        }
+      });
+      lastResult.grandTotal = data.result.grandTotal;
     }
   } catch(err) {
-    // ถ้า server ล่ม ใช้ค่าที่มีอยู่เดิมไปก่อน ไม่ให้จอค้าง
     console.log('recalc error:', err);
   }
   renderResult(lastResult);
