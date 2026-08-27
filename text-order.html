@@ -448,22 +448,13 @@ function pickProduct(idx, sIdx) {
     return;
   }
 
-  // หยิบตัวเลือกที่เลือก (มีราคาคำนวณมาแล้วจาก backend)
+  // หยิบตัวเลือกที่เลือก
   const chosen = item.suggestions[sIdx];
   if (!chosen) return;
 
-  // แปลง item นี้จาก "ไม่ชัวร์" เป็น "พบแล้ว" ด้วยข้อมูลที่เลือก
-  item.found        = true;
-  item.uncertain    = false;
-  item.suggestions  = null;
-  item.matchedName  = chosen.name;
-  item.matchedFull  = chosen.fullName;
-  item.displayLabel = chosen.displayLabel;
-  item.total        = chosen.total;
-  overrides[item.inputName] = chosen.fullName;  // จำไว้ใช้ตอนส่ง LINE
-
-  recalcGrandTotal();
-  renderResult(lastResult);  // วาดใหม่ทันที ไม่ต้องรอ GAS
+  // จำรุ่นที่เลือก แล้วยิงกลับ server เพื่อคิดราคาส่งแบบรวมกลุ่ม
+  overrides[item.inputName] = chosen.fullName;
+  recalcFromServer();
 }
 
 // ==================== เปิดแผงเลือกรุ่น ====================
@@ -494,21 +485,38 @@ function closeVariantSheet() {
   document.getElementById('variantOverlay').classList.remove('show');
 }
 
-// ==================== เลือกรุ่นใหม่ → อัปเดตในเครื่องทันที (ไม่เรียก GAS) ====================
+// ==================== เลือกรุ่นใหม่ → คำนวณใหม่ที่ server (รวมกลุ่มราคาส่งถูกต้อง) ====================
 function selectVariant(idx, variant) {
   const item = lastResult.items[idx];
-
-  // อัปเดตข้อมูล item ในเครื่องเลย
-  item.matchedName  = variant.name;
-  item.matchedFull  = variant.fullName;
-  item.displayLabel = variant.displayLabel;
-  item.total        = variant.total;
-  overrides[item.inputName] = variant.fullName;  // จำไว้ใช้ตอนส่ง LINE
-
-  // คำนวณยอดรวมใหม่จากข้อมูลในเครื่อง
-  recalcGrandTotal();
+  overrides[item.inputName] = variant.fullName;  // จำรุ่นที่เลือก
   closeVariantSheet();
-  renderResult(lastResult);  // วาดใหม่ทันที ไม่ต้องรอ GAS
+  recalcFromServer();  // ยิงกลับ server เพื่อให้คิดราคาส่งแบบรวมกลุ่ม
+}
+
+// ==================== คำนวณใหม่ที่ server โดยใช้ overrides ที่เลือกไว้ ====================
+// ใช้หลังเลือกรุ่น/เลือกสินค้า เพื่อให้ราค่าส่งแบบรวมกลุ่ม (groupKey) ถูกต้อง
+// เพราะ logic รวมกลุ่มอยู่ที่ server (analyzeOrder) ไม่ได้อยู่ในเครื่อง
+async function recalcFromServer() {
+  const customer = document.getElementById('customerInput').value.trim();
+  const text     = document.getElementById('orderText').value.trim();
+  const totalEl = document.getElementById('totalAmount');
+  if (totalEl) totalEl.textContent = 'กำลังคิด...';
+  try {
+    const orderText = customer + '\n' + text;
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'calcTextOrder', orderText, overrides })
+    });
+    const data = await res.json();
+    if (data.ok && !data.error && data.result) {
+      lastResult = data.result;
+    }
+  } catch(err) {
+    // ถ้า server ล่ม ใช้ค่าที่มีอยู่เดิมไปก่อน ไม่ให้จอค้าง
+    console.log('recalc error:', err);
+  }
+  renderResult(lastResult);
 }
 
 // ==================== คำนวณยอดรวมใหม่จากข้อมูลในเครื่อง ====================
