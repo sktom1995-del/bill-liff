@@ -84,6 +84,8 @@
     .check-summary { padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 12px; text-align: center; }
     .check-summary.ok { background: #e8f5e9; color: #2e7d32; }
     .check-summary.warn { background: #fff8e1; color: #f57f17; }
+    .bulk-group-bar { display: flex; align-items: center; gap: 6px; background: #e8f5e9; color: #2e7d32; font-size: 13px; font-weight: 500; padding: 9px 12px; border-radius: 8px; margin-bottom: 8px; }
+    .bulk-group-bar .bulk-icon { font-size: 14px; }
     .result-item-amt { font-size: 14px; font-weight: 700; color: #00B900; white-space: nowrap; }
     .change-btn {
       margin-top: 8px; display: inline-flex; align-items: center; gap: 4px;
@@ -381,6 +383,16 @@ function renderResult(result) {
   summary.textContent = summaryText;
   list.appendChild(summary);
 
+  // ===== แถบแจ้งกลุ่มที่ครบขั้นต่ำ ได้ราคาส่ง =====
+  if (result.bulkGroups && result.bulkGroups.length > 0) {
+    result.bulkGroups.forEach(function(g) {
+      const bar = document.createElement('div');
+      bar.className = 'bulk-group-bar';
+      bar.innerHTML = '<span class="bulk-icon">🔗</span> กลุ่ม' + g.groupKey + 'ครบ ' + g.totalBags + ' ถุง ได้ราคาส่ง ' + g.bulkPrice + ' บ./ถุง';
+      list.appendChild(bar);
+    });
+  }
+
   result.items.forEach((item, idx) => {
     // กรณีไม่ชัวร์ → แสดงปุ่มให้เลือก (fuzzy ไม่เจอ)
     if (item.uncertain && item.suggestions && item.suggestions.length > 0) {
@@ -554,6 +566,7 @@ async function recalcFromServer() {
         }
       });
       lastResult.grandTotal = data.result.grandTotal;
+      lastResult.bulkGroups = data.result.bulkGroups || [];
     }
   } catch(err) {
     console.log('recalc error:', err);
