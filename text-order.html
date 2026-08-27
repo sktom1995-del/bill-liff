@@ -541,8 +541,8 @@ async function recalcFromServer() {
     .filter(it => it.found)
     .map(it => ({
       fullName:  it.matchedFull || it.matchedName,
-      inputQty:  it.inputQty,
-      inputUnit: it.inputUnit || 'ถุง',
+      inputQty:  it.inputQty || it.qty || 1,
+      inputUnit: it.inputUnit || it.unit || 'ถุง',
       inputName: it.inputName
     }));
 
