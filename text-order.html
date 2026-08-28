@@ -213,6 +213,8 @@ let userProfile = null;
 let lastResult   = null;
 let overrides    = {};  // { "ชื่อที่พิมพ์": "ชื่อเต็มรุ่นที่เลือก" }
 let recalcSeq    = 0;    // นับ request คำนวณ กันผลเก่าทับผลใหม่
+let allProducts  = [];   // ข้อมูลสินค้าทั้งหมด (โหลดตอนเปิดหน้า ใช้คิดราคารวมกลุ่มในเครื่อง)
+let specialNorm  = {};   // ราคาพิเศษของลูกค้าปัจจุบัน { normalizeName: ราคา }
 
 // ==================== INIT (ไม่ต้องโหลดสินค้าเลย เร็วมาก) ====================
 async function init() {
@@ -232,6 +234,35 @@ async function init() {
   setupLineGutter();
   setupCustomerDropdown();
   loadCustomerList();
+  loadProducts();
+}
+
+// โหลดข้อมูลสินค้าทั้งหมดเก็บในเครื่อง (สำหรับคิดราคารวมกลุ่มทันทีตอนเลือกรุ่น)
+const PROD_CACHE_KEY = 'montchai_products_v1';
+async function loadProducts() {
+  try {
+    const cached = localStorage.getItem(PROD_CACHE_KEY);
+    if (cached) allProducts = JSON.parse(cached);
+  } catch(e) {}
+  try {
+    const res = await fetch(GAS_URL + '?action=getProducts');
+    const list = await res.json();
+    if (Array.isArray(list)) {
+      allProducts = list;
+      localStorage.setItem(PROD_CACHE_KEY, JSON.stringify(list));
+    }
+  } catch(e) { console.log('โหลดสินค้าไม่ได้:', e); }
+}
+
+// โหลดราคาพิเศษของลูกค้า (format เดียวกับ server: normalizeName เป็น key)
+async function loadSpecialPrices(customer) {
+  specialNorm = {};
+  if (!customer) return;
+  try {
+    const res = await fetch(GAS_URL + '?action=getSpecialPricesNorm&customer=' + encodeURIComponent(customer));
+    const p = await res.json();
+    if (p && typeof p === 'object') specialNorm = p;
+  } catch(e) { console.log('โหลดราคาพิเศษไม่ได้:', e); }
 }
 
 // ==================== dropdown รายชื่อลูกค้า ====================
@@ -243,6 +274,7 @@ function setupCustomerDropdown() {
   // เลือกจาก dropdown → เก็บค่าลง hidden input (ที่ calculateOrder อ่าน)
   sel.addEventListener('change', function() {
     hidden.value = sel.value;
+    loadSpecialPrices(sel.value);
   });
 }
 
@@ -319,6 +351,8 @@ async function calculateOrder() {
   const btn = document.getElementById('calcBtn');
   btn.disabled = true;
   btn.textContent = '⏳ กำลังคำนวณ...';
+
+  await loadSpecialPrices(customer);  // ให้ calcLocal มีราคาพิเศษที่ถูกต้อง
 
   try {
     const orderText = customer + '\n' + text;
@@ -465,10 +499,11 @@ function pickProduct(idx, sIdx) {
   item.total        = chosen.total;
   overrides[item.inputName] = chosen.fullName;
 
-  recalcGrandTotal();
+  // คิดราคารวมกลุ่มในเครื่องทันที (ถ้ามีข้อมูลสินค้า)
+  if (!calcLocal()) recalcGrandTotal();
   renderResult(lastResult);
 
-  // 2) ยิง server เบื้องหลังเพื่อปรับราคารวมกลุ่มให้ถูกต้อง
+  // 2) ยิง server เบื้องหลังเพื่อตรวจทานราคาอีกที
   recalcFromServer();
 }
 
@@ -511,17 +546,97 @@ function selectVariant(idx, variant) {
   item.total        = variant.total;
   overrides[item.inputName] = variant.fullName;
 
-  recalcGrandTotal();
+  // คิดราคารวมกลุ่มในเครื่องทันที (ถ้ามีข้อมูลสินค้า) ไม่ต้องรอ server
+  if (!calcLocal()) recalcGrandTotal();
   closeVariantSheet();
   renderResult(lastResult);
 
-  // 2) ยิง server เบื้องหลังเพื่อปรับราคารวมกลุ่ม (ราคาส่ง) ให้ถูกต้อง
+  // 2) ยิง server เบื้องหลังเพื่อตรวจทานราคาอีกที
   recalcFromServer();
 }
 
 // ==================== คำนวณใหม่ที่ server โดยใช้ overrides ที่เลือกไว้ ====================
 // ใช้หลังเลือกรุ่น/เลือกสินค้า เพื่อให้ราค่าส่งแบบรวมกลุ่ม (groupKey) ถูกต้อง
 // เพราะ logic รวมกลุ่มอยู่ที่ server (analyzeOrder) ไม่ได้อยู่ในเครื่อง
+// ==================== คำนวณราคารวมกลุ่มในเครื่อง (ให้ผลทันทีไม่ต้องรอ server) ====================
+// ยกสูตรจาก recalcResolvedOrder ฝั่ง server ต้องตรงกันเป๊ะ
+function normalizeNameLocal(s) { return String(s).replace(/\s+/g, '').trim(); }
+
+function findProductLocal(fullName) {
+  return allProducts.find(function(p) {
+    if (p.name === fullName) return true;
+    return p.name.split('หรือ')[0].trim() === fullName;
+  });
+}
+
+// คำนวณราคารายการที่ found ทั้งหมดใหม่ (รวมกลุ่ม) แล้วอัปเดตลง lastResult ในเครื่อง
+function calcLocal() {
+  if (!allProducts.length) return false;  // ยังไม่มีข้อมูลสินค้า → ให้ไปพึ่ง server แทน
+
+  const foundItems = lastResult.items.filter(function(it){ return it.found; });
+
+  // จับคู่ product + คิดจำนวนถุง
+  const rows = foundItems.map(function(it) {
+    const m = findProductLocal(it.matchedFull || it.matchedName);
+    const qty = Number(it.inputQty || it.qty || 1);
+    const unit = it.inputUnit || it.unit || 'ถุง';
+    let totalBags = qty;
+    if (m) {
+      if (unit === 'หิ้ว' && m.bagPerHiw)      totalBags = qty * m.bagPerHiw;
+      else if (unit === 'โล' && m.kgPerBag)    totalBags = qty / m.kgPerBag;
+      else if (unit === 'ลัง' && m.bagPerLang) totalBags = qty * m.bagPerLang;
+      else if (unit === 'คู่')                 totalBags = qty * 2;
+    }
+    return { it: it, m: m, qty: qty, unit: unit, totalBags: totalBags };
+  });
+
+  // นับถุงรวมต่อกลุ่ม
+  const groupTotals = {};
+  rows.forEach(function(r) {
+    if (r.m && r.m.groupKey) groupTotals[r.m.groupKey] = (groupTotals[r.m.groupKey] || 0) + r.totalBags;
+  });
+
+  // คิดราคา
+  let grandTotal = 0;
+  rows.forEach(function(r) {
+    if (!r.m) return;  // หาสินค้าไม่เจอในเครื่อง → ปล่อยราคาเดิม รอ server แก้
+    const m = r.m, unit = r.unit, totalBags = r.totalBags;
+    const effectiveBags = m.groupKey ? groupTotals[m.groupKey] : totalBags;
+
+    let isBulk = false;
+    if (unit === 'โล' && m.minKg && r.qty >= m.minKg) isBulk = true;
+    if (m.minQty && effectiveBags >= m.minQty) isBulk = true;
+
+    const baseName = m.name.split('หรือ')[0].trim();
+    const spKey = normalizeNameLocal(baseName);
+    let pricePerBag, isSpecial = false;
+    if (specialNorm[spKey] != null && !isNaN(specialNorm[spKey])) {
+      pricePerBag = specialNorm[spKey];
+      isSpecial = true;
+    } else {
+      pricePerBag = isBulk ? m.bulkPrice : m.price;
+    }
+    const total = pricePerBag * totalBags;
+    grandTotal += total;
+
+    let displayLabel;
+    if (unit === 'หิ้ว')                      displayLabel = baseName + '|' + r.qty + 'หิ้ว*' + (total / r.qty) + '|' + total;
+    else if (unit === 'โล')                   displayLabel = baseName + '|' + r.qty + 'โล*' + (pricePerBag * (1 / m.kgPerBag)) + '|' + total;
+    else if (unit === 'ลัง' && m.bagPerLang)  displayLabel = baseName + '|' + r.qty + 'ลัง(' + totalBags + 'ถุง)*' + pricePerBag + '|' + total;
+    else if (unit === 'คู่')                  displayLabel = baseName + '|' + r.qty + 'คู่(' + totalBags + 'ถุง)*' + pricePerBag + '|' + total;
+    else                                       displayLabel = baseName + '|' + totalBags + 'ถุง*' + pricePerBag + '|' + total;
+    if (isSpecial) displayLabel += ' ⭐';
+
+    r.it.total         = total;
+    r.it.displayLabel  = displayLabel;
+    r.it.bulkFromGroup = !!(m.groupKey && m.minQty && effectiveBags >= m.minQty && totalBags < m.minQty);
+    r.it.groupKey      = m.groupKey || null;
+  });
+
+  lastResult.grandTotal = grandTotal;
+  return true;
+}
+
 async function recalcFromServer() {
   if (!lastResult) return;
   const customer = document.getElementById('customerInput').value.trim();
