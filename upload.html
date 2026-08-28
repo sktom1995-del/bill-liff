@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>อัปรูปสินค้า → ImgBB</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Sarabun',sans-serif; background:#f0f2f5; color:#333; padding-bottom:40px; }
+
+  .header { background:#00B900; color:#fff; padding:16px; text-align:center; }
+  .header h1 { font-size:18px; font-weight:700; }
+  .header p { font-size:12px; opacity:.9; margin-top:3px; }
+
+  .wrap { max-width:700px; margin:0 auto; padding:14px; }
+
+  .box { background:#fff; border-radius:12px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .box h2 { font-size:14px; font-weight:700; margin-bottom:10px; color:#333; }
+
+  label.fld { font-size:13px; color:#555; display:block; margin-bottom:5px; }
+  .key-input {
+    width:100%; padding:11px; border:1px solid #ddd; border-radius:8px;
+    font-size:14px; font-family:'Sarabun',sans-serif;
+  }
+  .key-input:focus { outline:none; border-color:#00B900; }
+  .key-hint { font-size:11px; color:#aaa; margin-top:6px; }
+  .key-hint a { color:#00B900; }
+
+  .settings { display:flex; gap:14px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .settings label { font-size:13px; color:#555; }
+  .settings select {
+    padding:7px 10px; border:1px solid #ddd; border-radius:7px;
+    font-size:13px; font-family:'Sarabun',sans-serif; background:#fff;
+  }
+
+  .drop {
+    border:2px dashed #bbb; border-radius:12px; padding:34px 16px; text-align:center;
+    color:#888; cursor:pointer; transition:.15s; background:#fafafa;
+  }
+  .drop.hover { border-color:#00B900; background:#f0fff0; color:#00B900; }
+  .drop .icon { font-size:34px; margin-bottom:8px; }
+  .drop .big { font-size:15px; font-weight:600; color:#555; }
+  .drop .small { font-size:12px; margin-top:4px; }
+
+  .btn {
+    width:100%; padding:13px; background:#00B900; color:#fff; border:none;
+    border-radius:10px; font-size:16px; font-weight:700;
+    font-family:'Sarabun',sans-serif; cursor:pointer; margin-top:12px;
+  }
+  .btn:active { background:#009900; }
+  .btn:disabled { background:#ccc; cursor:not-allowed; }
+
+  .btn-outline {
+    background:#fff; color:#00B900; border:1.5px solid #00B900;
+  }
+  .btn-outline:active { background:#f0fff0; }
+
+  .progress-wrap { margin-top:12px; display:none; }
+  .progress-wrap.show { display:block; }
+  .pbar-bg { height:8px; background:#eee; border-radius:4px; overflow:hidden; }
+  .pbar { height:100%; width:0; background:#00B900; transition:width .2s; }
+  .pstat { font-size:12px; color:#666; margin-top:6px; text-align:center; }
+
+  .item {
+    display:flex; align-items:center; gap:10px; padding:8px 0;
+    border-top:1px solid #f2f2f2; font-size:13px;
+  }
+  .item:first-child { border-top:none; }
+  .item .thumb { width:40px; height:40px; border-radius:6px; object-fit:cover; background:#f0f0f0; flex-shrink:0; }
+  .item .info { flex:1; min-width:0; }
+  .item .nm { font-weight:600; word-break:break-word; }
+  .item .st { font-size:11px; margin-top:2px; }
+  .st.wait { color:#999; }
+  .st.doing { color:#f59e0b; }
+  .st.done { color:#00B900; }
+  .st.fail { color:#e53935; }
+
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid #eee; word-break:break-all; }
+  th { background:#f7f7f7; font-weight:600; color:#555; }
+  td.name-cell { font-weight:600; color:#333; white-space:nowrap; }
+
+  .result-actions { display:flex; gap:8px; margin-top:12px; }
+  .result-actions .btn { margin-top:0; }
+
+  .hidden { display:none; }
+  .muted { font-size:12px; color:#999; text-align:center; padding:20px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📤 อัปรูปสินค้า → ImgBB</h1>
+  <p>ย่อขนาด + อัปหลายรูปทีเดียว แล้วได้ตาราง ชื่อ+ลิงก์</p>
+</div>
+
+<div class="wrap">
+
+  <!-- 1. API KEY -->
+  <div class="box">
+    <h2>1. ใส่ ImgBB API Key</h2>
+    <label class="fld">API Key</label>
+    <input class="key-input" id="apiKey" type="text" placeholder="วาง API key ที่นี่" autocomplete="off">
+    <div class="key-hint">
+      ยังไม่มี? ไปที่ <a href="https://api.imgbb.com/" target="_blank">api.imgbb.com</a> → ล็อกอิน → Get API key (ฟรี)
+      <br>* key จะถูกจำไว้ในเครื่องนี้ ไม่ต้องกรอกซ้ำ
+    </div>
+    <div class="settings">
+      <div>
+        <label class="fld">ย่อกว้างสูงสุด</label>
+        <select id="maxW">
+          <option value="600">600 px</option>
+          <option value="800" selected>800 px</option>
+          <option value="1000">1000 px</option>
+          <option value="0">ไม่ย่อ (ไม่แนะนำ)</option>
+        </select>
+      </div>
+      <div>
+        <label class="fld">คุณภาพ</label>
+        <select id="quality">
+          <option value="0.7">70% (เล็กสุด)</option>
+          <option value="0.8" selected>80% (แนะนำ)</option>
+          <option value="0.9">90%</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. เลือกรูป -->
+  <div class="box">
+    <h2>2. เลือกรูปสินค้า</h2>
+    <div class="drop" id="drop">
+      <div class="icon">🖼️</div>
+      <div class="big">ลากรูปมาวาง หรือแตะเพื่อเลือก</div>
+      <div class="small">เลือกได้หลายรูปพร้อมกัน · ชื่อสินค้าจะเอามาจากชื่อไฟล์</div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
+    <div id="fileList"></div>
+    <button class="btn" id="startBtn" disabled onclick="startUpload()">เริ่มอัปโหลด</button>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="pbar-bg"><div class="pbar" id="pbar"></div></div>
+      <div class="pstat" id="pstat"></div>
+    </div>
+  </div>
+
+  <!-- 3. ผลลัพธ์ -->
+  <div class="box hidden" id="resultBox">
+    <h2>3. ผลลัพธ์ — คัดลอกไปวางในชีต</h2>
+    <div id="resultTable"></div>
+    <div class="result-actions">
+      <button class="btn btn-outline" onclick="copyTSV()">📋 คัดลอก (วางในชีตได้เลย)</button>
+      <button class="btn btn-outline" onclick="copyURLs()">คัดลอกเฉพาะลิงก์</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var apiKeyEl = document.getElementById('apiKey');
+var LS_KEY = 'imgbb_api_key';
+
+// โหลด key ที่จำไว้
+try {
+  var saved = localStorage.getItem(LS_KEY);
+  if (saved) apiKeyEl.value = saved;
+} catch (e) {}
+apiKeyEl.addEventListener('change', function(){
+  try { localStorage.setItem(LS_KEY, apiKeyEl.value.trim()); } catch (e) {}
+});
+
+var files = [];       // { file, name, status, url }
+var drop = document.getElementById('drop');
+var fileInput = document.getElementById('fileInput');
+
+drop.addEventListener('click', function(){ fileInput.click(); });
+drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('hover'); });
+drop.addEventListener('dragleave', function(){ drop.classList.remove('hover'); });
+drop.addEventListener('drop', function(e){
+  e.preventDefault(); drop.classList.remove('hover');
+  addFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', function(){ addFiles(fileInput.files); });
+
+function nameFromFile(filename) {
+  // ตัดนามสกุลออก เอาชื่อไฟล์เป็นชื่อสินค้า
+  return filename.replace(/\.[^.]+$/, '').trim();
+}
+
+function addFiles(fileList) {
+  for (var i = 0; i < fileList.length; i++) {
+    var f = fileList[i];
+    if (!f.type.match(/^image\//)) continue;
+    files.push({ file: f, name: nameFromFile(f.name), status: 'wait', url: '' });
+  }
+  renderFileList();
+  document.getElementById('startBtn').disabled = files.length === 0;
+}
+
+function renderFileList() {
+  var el = document.getElementById('fileList');
+  if (files.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = files.map(function(it, idx){
+    var stClass = it.status;
+    var stText = { wait:'รอ', doing:'กำลังอัป...', done:'✓ เสร็จ', fail:'✕ ล้มเหลว' }[it.status];
+    return '<div class="item">' +
+      '<img class="thumb" id="thumb' + idx + '" alt="">' +
+      '<div class="info">' +
+        '<div class="nm">' + escapeHtml(it.name) + '</div>' +
+        '<div class="st ' + stClass + '">' + stText + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  // preview thumbnails
+  files.forEach(function(it, idx){
+    var img = document.getElementById('thumb' + idx);
+    if (img && !img.src) {
+      var reader = new FileReader();
+      reader.onload = function(e){ img.src = e.target.result; };
+      reader.readAsDataURL(it.file);
+    }
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ย่อขนาดรูปด้วย canvas → คืน base64 (ไม่มี prefix)
+function resizeImage(file, maxW, quality) {
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height;
+        if (maxW > 0 && w > maxW) {
+          h = Math.round(h * maxW / w);
+          w = maxW;
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        var dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl.split(',')[1]); // ตัด "data:image/jpeg;base64,"
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function uploadOne(base64, apiKey) {
+  var form = new FormData();
+  form.append('image', base64);
+  return fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(apiKey), {
+    method: 'POST',
+    body: form
+  }).then(function(r){ return r.json(); });
+}
+
+var uploading = false;
+
+async function startUpload() {
+  if (uploading) return;
+  var apiKey = apiKeyEl.value.trim();
+  if (!apiKey) { alert('กรุณาใส่ ImgBB API Key ก่อนครับ'); apiKeyEl.focus(); return; }
+  if (files.length === 0) return;
+
+  try { localStorage.setItem(LS_KEY, apiKey); } catch (e) {}
+
+  uploading = true;
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('progressWrap').classList.add('show');
+
+  var maxW = parseInt(document.getElementById('maxW').value);
+  var quality = parseFloat(document.getElementById('quality').value);
+  var done = 0, ok = 0, failCount = 0;
+
+  for (var i = 0; i < files.length; i++) {
+    var it = files[i];
+    if (it.status === 'done') { done++; ok++; updateProgress(done, files.length); continue; }
+    it.status = 'doing';
+    renderFileList();
+    try {
+      var base64 = await resizeImage(it.file, maxW, quality);
+      var res = await uploadOne(base64, apiKey);
+      if (res && res.success && res.data && res.data.url) {
+        it.url = res.data.url;
+        it.status = 'done';
+        ok++;
+      } else {
+        it.status = 'fail';
+        failCount++;
+        console.error('Upload failed:', res);
+      }
+    } catch (err) {
+      it.status = 'fail';
+      failCount++;
+      console.error('Error:', err);
+    }
+    done++;
+    renderFileList();
+    updateProgress(done, files.length);
+  }
+
+  uploading = false;
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('pstat').textContent =
+    'เสร็จสิ้น: สำเร็จ ' + ok + ' รูป' + (failCount ? ' · ล้มเหลว ' + failCount + ' รูป (กดเริ่มอัปโหลดอีกครั้งเพื่อลองรูปที่ล้มเหลวใหม่)' : '');
+  renderResult();
+}
+
+function updateProgress(done, total) {
+  var pct = Math.round(done / total * 100);
+  document.getElementById('pbar').style.width = pct + '%';
+  document.getElementById('pstat').textContent = 'กำลังอัป ' + done + ' / ' + total + ' รูป';
+}
+
+function renderResult() {
+  var okFiles = files.filter(function(f){ return f.status === 'done'; });
+  if (okFiles.length === 0) return;
+  document.getElementById('resultBox').classList.remove('hidden');
+  var rows = okFiles.map(function(f){
+    return '<tr><td class="name-cell">' + escapeHtml(f.name) + '</td><td>' + f.url + '</td></tr>';
+  }).join('');
+  document.getElementById('resultTable').innerHTML =
+    '<table><thead><tr><th>ชื่อสินค้า</th><th>ลิงก์รูป (ImgBB)</th></tr></thead><tbody>' +
+    rows + '</tbody></table>';
+}
+
+function copyTSV() {
+  var okFiles = files.filter(function(f){ return f.status === 'done'; });
+  var tsv = okFiles.map(function(f){ return f.name + '\t' + f.url; }).join('\n');
+  copyText(tsv, 'คัดลอกแล้ว! วางในชีตได้เลย (ชื่อกับลิงก์จะแยกคนละคอลัมน์)');
+}
+
+function copyURLs() {
+  var okFiles = files.filter(function(f){ return f.status === 'done'; });
+  var urls = okFiles.map(function(f){ return f.url; }).join('\n');
+  copyText(urls, 'คัดลอกเฉพาะลิงก์แล้ว!');
+}
+
+function copyText(text, msg) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  alert('✅ ' + msg);
+}
+</script>
+</body>
+</html>
