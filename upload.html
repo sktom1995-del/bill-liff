@@ -106,10 +106,13 @@
     </div>
   </div>
   <div class="box hidden" id="resultBox">
-    <h2>3. ผลลัพธ์ — คัดลอกไปวางในชีต</h2>
-    <div id="resultTable"></div>
+    <h2>3. ผลลัพธ์</h2>
+    <div class="name-status show ok" id="writeStatus" style="display:none;"></div>
+    <button class="btn" id="writeBtn" onclick="writeToSheet()">📝 เขียน URL กลับชีตอัตโนมัติ (คอลัมน์ P)</button>
+    <div style="font-size:11px; color:#aaa; margin-top:8px; text-align:center;">ต้องใส่ GAS URL ในขั้นตอนที่ 1 ก่อน · ระบบจะหาแถวที่ชื่อตรงแล้วเขียนให้เอง</div>
+    <div id="resultTable" style="margin-top:14px;"></div>
     <div class="result-actions">
-      <button class="btn btn-outline" onclick="copyTSV()">📋 คัดลอก ชื่อ+ลิงก์</button>
+      <button class="btn btn-outline" onclick="copyTSV()">📋 คัดลอก ชื่อ+ลิงก์ (เผื่ออยากวางเอง)</button>
       <button class="btn btn-outline" onclick="copyURLs()">คัดลอกเฉพาะลิงก์</button>
     </div>
   </div>
@@ -303,6 +306,51 @@ function renderResult() {
   var rows = okFiles.map(function(f){ return '<tr><td class="name-cell">' + escapeHtml(f.name) + '</td><td>' + f.url + '</td></tr>'; }).join('');
   document.getElementById('resultTable').innerHTML = '<table><thead><tr><th>ชื่อสินค้า</th><th>ลิงก์รูป (ImgBB)</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
+async function writeToSheet() {
+  var url = gasUrlEl.value.trim();
+  var statusEl = document.getElementById('writeStatus');
+  var btn = document.getElementById('writeBtn');
+  if (!url) { alert('ใส่ GAS URL ในขั้นตอนที่ 1 ก่อนครับ'); gasUrlEl.focus(); return; }
+
+  var okFiles = files.filter(function(f){ return f.status === 'done'; });
+  if (okFiles.length === 0) { alert('ยังไม่มีรูปที่อัปสำเร็จ'); return; }
+
+  var items = okFiles.map(function(f){ return { name: f.name, url: f.url }; });
+
+  btn.disabled = true;
+  statusEl.style.display = 'block';
+  statusEl.className = 'name-status show';
+  statusEl.textContent = 'กำลังเขียน URL ลงชีต ' + items.length + ' รายการ...';
+
+  try {
+    // ส่งเป็น text/plain เพื่อเลี่ยง CORS preflight ของ GAS
+    var res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ items: items })
+    });
+    var data = await res.json();
+    if (data && data.success) {
+      statusEl.className = 'name-status show ok';
+      var msg = '✓ เขียนลงชีตแล้ว ' + data.updatedCount + ' รายการ';
+      if (data.notFoundCount > 0) {
+        msg += ' · ⚠ หาแถวไม่เจอ ' + data.notFoundCount + ' รายการ: ' + data.notFound.join(', ');
+        msg += ' (ชื่อไม่ตรงกับคอลัมน์ O หรือ A ในชีต — ตัวนี้ต้องวางเอง)';
+        statusEl.className = 'name-status show';
+      }
+      statusEl.textContent = msg;
+      btn.textContent = '✓ เขียนลงชีตแล้ว (กดซ้ำได้ถ้าต้องการ)';
+    } else {
+      statusEl.className = 'name-status show';
+      statusEl.textContent = '✕ เขียนไม่สำเร็จ: ' + JSON.stringify(data).slice(0, 200);
+    }
+  } catch (err) {
+    statusEl.className = 'name-status show';
+    statusEl.textContent = '✕ เขียนไม่ได้: ' + err + ' (ตรวจว่า deploy เวอร์ชันใหม่ที่มี doPost แล้ว และ Access = Anyone)';
+  }
+  btn.disabled = false;
+}
+
 function copyTSV() {
   var okFiles = files.filter(function(f){ return f.status === 'done'; });
   copyText(okFiles.map(function(f){ return f.name + '\t' + f.url; }).join('\n'), 'คัดลอกแล้ว! วางในชีตได้เลย (ชื่อกับลิงก์แยกคนละคอลัมน์)');
