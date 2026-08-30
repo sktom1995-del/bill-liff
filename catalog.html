@@ -111,6 +111,29 @@
 
   .empty { text-align:center; color:#aaa; padding:40px 0; font-size:14px; }
   .loading { text-align:center; color:#888; padding:40px 0; font-size:14px; }
+
+  .card-img { cursor:zoom-in; }
+
+  /* ขยายรูป (lightbox) */
+  .lightbox {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.85);
+    z-index:200; align-items:center; justify-content:center; padding:24px;
+    flex-direction:column;
+  }
+  .lightbox.show { display:flex; }
+  .lightbox img {
+    max-width:100%; max-height:80vh; border-radius:10px;
+    object-fit:contain; background:#fff;
+  }
+  .lightbox-name {
+    color:#fff; font-size:16px; font-weight:600; margin-top:14px; text-align:center;
+  }
+  .lightbox-close {
+    position:absolute; top:16px; right:18px; width:38px; height:38px;
+    background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:50%;
+    font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .lightbox-close:active { background:rgba(255,255,255,.35); }
 </style>
 </head>
 <body>
@@ -133,6 +156,13 @@
     <div class="sheet-title">รายการที่เลือก</div>
     <div id="cartList"></div>
   </div>
+</div>
+
+<!-- ขยายรูป -->
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" alt="">
+  <div class="lightbox-name" id="lightboxName"></div>
 </div>
 
 <script>
@@ -211,8 +241,10 @@ function renderGrid() {
     const qty = cart[p.name] || 0;
     const picked = qty > 0 ? ' picked' : '';
     const safeName = p.name.replace(/'/g, "\\'");
+    const safeUrl = p.imgUrl ? p.imgUrl.replace(/'/g, "\\'") : '';
     const img = p.imgUrl
-      ? '<img class="card-img" src="' + p.imgUrl + '" alt="' + p.name + '" loading="lazy">'
+      ? '<img class="card-img" src="' + p.imgUrl + '" alt="' + p.name + '" loading="lazy" ' +
+        'onclick="openLightbox(\'' + safeUrl + '\', \'' + safeName + '\')">'
       : '<div class="card-img"></div>';
     return '<div class="card' + picked + '">' +
       img +
@@ -318,6 +350,16 @@ function copyList() {
   document.execCommand('copy');
   document.body.removeChild(ta);
   alert('✅ คัดลอกแล้ว!\nส่งให้ร้านทางไลน์ได้เลยครับ');
+}
+
+// ==================== ขยายรูป ====================
+function openLightbox(url, name) {
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightboxName').textContent = name;
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('show');
 }
 
 init();
